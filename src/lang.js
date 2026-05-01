@@ -152,8 +152,8 @@ const STRINGS = {
 
   // ---- Info flow ----
   'info.body':           {
-    en: '🏥 Unique Janch Ghar\n\n⏰ Hours\nMon–Sat: 7:00 AM – 8:00 PM\nSun: 8:00 AM – 1:00 PM\n\n📞 Phone\n+91-XXXXXXXXXX\n\n📍 Address\n[Lab address line 1]\n[City, PIN]\n\n🌐 indalkp.com/lab\n\nReply MENU for the main menu.',
-    hi: '🏥 यूनिक जाँच घर\n\n⏰ समय\nसोम–शनि: सुबह 7:00 – रात 8:00\nरवि: सुबह 8:00 – दोपहर 1:00\n\n📞 फ़ोन\n+91-XXXXXXXXXX\n\n📍 पता\n[लैब का पता लाइन 1]\n[शहर, पिन]\n\n🌐 indalkp.com/lab\n\nमुख्य मेनू के लिए MENU भेजें।',
+    en: '🏥 Unique Janch Ghar\n\n⏰ Hours\nMon–Sat 7AM–9PM\nSun 7AM–12PM\n\n📞 Phone\n+91 9798586981\n\n📍 Address\nNear RX India Pharma, opp. Sub-Divisional Hospital,\nRajgir, Nalanda, Bihar 803116\n\n🌐 startling-fairy-6a1334.netlify.app\n\nReply MENU for the main menu.',
+    hi: '🏥 यूनिक जाँच घर\n\n⏰ समय\nसोम–शनि: सुबह 7:00 – रात 9:00\nरवि: सुबह 8:00 – दोपहर 12:00\n\n📞 फ़ोन\n+91 9798586981\n\n📍 पता\nRX India Pharma के पास, सब-डिविज़नल हॉस्पिटल के सामने,\nरजगीर, नालंदा, बिहार 803116\n\n🌐 startling-fairy-6a1334.netlify.app\n\nमुख्य मेनू के लिए MENU भेजें।',
   },
 
   // ---- Handoff flow ----
