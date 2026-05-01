@@ -1,0 +1,27 @@
+{
+  "name": "unique-janch-ghar-webhook",
+  "version": "1.0.0",
+  "description": "WhatsApp Business Cloud API webhook for Unique Janch Ghar (diagnostic lab). Runs on Google Cloud Functions Gen 2 (asia-south1). Free-tier strict: free-form replies only, logs to Google Sheet.",
+  "private": true,
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "test": "node --test test/",
+    "lint:syntax": "node --check index.js && node --check src/verify.js && node --check src/router.js && node --check src/keywords.js && node --check src/actions.js && node --check src/sheets.js && node --check src/config.js && node --check src/logger.js",
+    "deploy": "gcloud functions deploy whatsappWebhook --gen2 --region=asia-south1 --runtime=nodejs20 --source=. --entry-point=whatsappWebhook --trigger-http --allow-unauthenticated --memory=256Mi --timeout=60s --env-vars-file=.env.yaml",
+    "start": "functions-framework --target=whatsappWebhook --port=8080"
+  },
+  "dependencies": {
+    "@google-cloud/functions-framework": "^3.4.0",
+    "googleapis": "^144.0.0"
+  },
+  "devDependencies": {},
+  "license": "MIT",
+  "author": "Indal KP <indalpatel@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/indalkp/unique-janch-ghar-webhook"
+  }
+}

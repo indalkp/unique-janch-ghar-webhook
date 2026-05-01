@@ -1,0 +1,53 @@
+{
+  "id": "menu",
+  "hindi": "कृपया एक विकल्प चुनें",
+  "english": "Please choose an option",
+  "interactive": {
+    "type": "list",
+    "header": {
+      "type": "text",
+      "text": "Unique Janch Ghar"
+    },
+    "body": {
+      "text": "Aap kis cheez mein madad chahte hain? / How can we help you?\n\nNeeche diye gaye options mein se chunें."
+    },
+    "footer": {
+      "text": "Reply with REPORT, BOOK, HOME, PRICE or MENU anytime."
+    },
+    "action": {
+      "button": "Menu / मेनू",
+      "sections": [
+        {
+          "title": "Services / सेवाएं",
+          "rows": [
+            {
+              "id": "REPORT",
+              "title": "रिपोर्ट / Report",
+              "description": "Get your test report / रिपोर्ट प्राप्त करें"
+            },
+            {
+              "id": "BOOK",
+              "title": "बुकिंग / Book Test",
+              "description": "Book a test appointment / जांच बुक करें"
+            },
+            {
+              "id": "HOME",
+              "title": "होम कलेक्शन / Home Visit",
+              "description": "Sample collection at home / घर पर सैंपल"
+            },
+            {
+              "id": "PRICE",
+              "title": "रेट / Price List",
+              "description": "Test rates / जांच की कीमत"
+            },
+            {
+              "id": "MENU",
+              "title": "मदद / Help",
+              "description": "Talk to our team / हमारी टीम से बात करें"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

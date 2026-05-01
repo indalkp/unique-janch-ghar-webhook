@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Local env (never commit secrets)
+.env
+.env.yaml
+.env.local
+*.env
+!.env.example
+!.env.yaml.example
+
+# Logs
+*.log
+npm-debug.log*
+.npm
+
+# Editor
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Build / coverage
+coverage/
+.nyc_output/
+
+# gcloud
+.gcloud/

@@ -1,0 +1,6 @@
+{
+  "id": "book",
+  "hindi": "जांच बुक करने के लिए धन्यवाद {{patientName}} 🙏\n\nकृपया भेजें:\n1) मरीज़ का नाम और उम्र\n2) कौन सी जांच करवानी है\n3) पसंदीदा तारीख और समय\n4) पता (यदि होम कलेक्शन चाहिए)\n\nहमारी टीम 15 मिनट में आपकी बुकिंग कन्फर्म कर देगी।",
+  "english": "Thanks for booking with us {{patientName}} 🙏\n\nPlease share:\n1) Patient name & age\n2) Which test(s) you need\n3) Preferred date & time\n4) Address (if you want home collection)\n\nOur team will confirm your booking within 15 minutes.",
+  "combined": "जांच बुक करने के लिए धन्यवाद {{patientName}} 🙏\nThanks for booking with us 🙏\n\nकृपया भेजें / Please share:\n1) मरीज़ का नाम व उम्र / Patient name & age\n2) कौन सी जांच / Which test(s)\n3) तारीख व समय / Preferred date & time\n4) पता (होम कलेक्शन के लिए) / Address (if home collection)\n\nहम 15 मिनट में बुकिंग कन्फर्म करेंगे।\nWe will confirm within 15 minutes."
+}

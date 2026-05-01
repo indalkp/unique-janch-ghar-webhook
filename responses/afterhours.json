@@ -1,0 +1,6 @@
+{
+  "id": "afterhours",
+  "hindi": "नमस्ते {{patientName}} 🙏\n\nइस समय हमारी लैब बंद है।\n\n⏰ कार्य समय: सुबह 8 बजे – रात 9 बजे (सोम–रवि)\n\nआपका मैसेज हमने सुरक्षित रख लिया है। सुबह 8 बजे हमारी टीम आपको ज़रूर रिप्लाई करेगी।\n\nइमरजेंसी के लिए: कॉल करें +91 9798586981",
+  "english": "Hello {{patientName}} 🙏\n\nOur lab is currently closed.\n\n⏰ Working hours: 8 AM – 9 PM IST (Mon–Sun)\n\nWe've saved your message — our team will reply first thing in the morning.\n\nFor emergencies: call +91 9798586981",
+  "combined": "नमस्ते {{patientName}} 🙏\nHello 🙏\n\nइस समय हमारी लैब बंद है। / Our lab is currently closed.\n\n⏰ कार्य समय / Hours: 8 AM – 9 PM IST (Mon–Sun)\n\nहमने आपका मैसेज सेव कर लिया है। सुबह 8 बजे टीम जवाब देगी।\nWe've saved your message — our team will reply at 8 AM.\n\nइमरजेंसी / Emergency: +91 9798586981"
+}

@@ -1,0 +1,42 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "123456789012345",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "919999999999",
+              "phone_number_id": "111111111111111"
+            },
+            "contacts": [
+              {
+                "profile": { "name": "Anil Kumar" },
+                "wa_id": "919876543212"
+              }
+            ],
+            "messages": [
+              {
+                "from": "919876543212",
+                "id": "wamid.HBgMOTE5ODc2NTQzMjEyFQIAEhggMDEyMzQ1Njc4OUxJU1QwAA==",
+                "timestamp": "1735689800",
+                "type": "interactive",
+                "interactive": {
+                  "type": "list_reply",
+                  "list_reply": {
+                    "id": "REPORT",
+                    "title": "रिपोर्ट / Report",
+                    "description": "Get your test report"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

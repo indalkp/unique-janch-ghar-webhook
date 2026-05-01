@@ -1,0 +1,6 @@
+{
+  "id": "greeting",
+  "hindi": "नमस्ते {{patientName}} 🙏\nUnique Janch Ghar में आपका स्वागत है। हम आपकी कैसे मदद कर सकते हैं? नीचे दिए गए विकल्पों में से चुनें।",
+  "english": "Hello {{patientName}} 🙏\nWelcome to Unique Janch Ghar. How can we help you today? Please pick from the menu below.",
+  "combined": "नमस्ते {{patientName}} 🙏\nUnique Janch Ghar में आपका स्वागत है।\n\nHello {{patientName}} 🙏\nWelcome to Unique Janch Ghar.\n\nKripya neeche diye gaye menu se chunें / Please pick an option below."
+}

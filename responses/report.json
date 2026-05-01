@@ -1,0 +1,6 @@
+{
+  "id": "report",
+  "hindi": "रिपोर्ट के लिए धन्यवाद {{patientName}} 🙏\n\nकृपया हमें बताएं:\n1) मरीज़ का पूरा नाम\n2) जांच की तारीख\n3) रजिस्ट्रेशन / बिल नंबर (यदि उपलब्ध हो)\n\nहमारी टीम 30 मिनट के अंदर आपकी रिपोर्ट यहीं भेज देगी।\n\n⏰ कार्य समय: सुबह 8 बजे से रात 9 बजे तक",
+  "english": "Thanks for asking about your report {{patientName}} 🙏\n\nPlease share:\n1) Patient's full name\n2) Date of test\n3) Registration / Bill number (if available)\n\nOur team will send your report here within 30 minutes.\n\n⏰ Working hours: 8 AM – 9 PM IST",
+  "combined": "रिपोर्ट के लिए धन्यवाद {{patientName}} 🙏\n\nकृपया भेजें / Please share:\n1) मरीज़ का पूरा नाम / Patient's full name\n2) जांच की तारीख / Date of test\n3) रजिस्ट्रेशन या बिल नंबर / Registration / Bill no. (if any)\n\nहमारी टीम 30 मिनट में रिपोर्ट यहीं भेज देगी।\nOur team will send your report here within 30 minutes.\n\n⏰ Working hours: 8 AM – 9 PM IST"
+}

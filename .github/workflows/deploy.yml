@@ -1,0 +1,68 @@
+# GitHub Actions: deploy to Google Cloud Functions on push to main.
+#
+# DISABLED BY DEFAULT — uncomment the `on:` block below after your first
+# manual deploy succeeds. Reason: a CI deploy that breaks production while
+# you're still figuring out env vars is the worst onboarding experience.
+#
+# Prerequisites once enabled:
+#   1. Create a GCP service account with roles/cloudfunctions.developer +
+#      roles/iam.serviceAccountUser on itself.
+#   2. Add its key as a GitHub secret named GCP_SA_KEY (full JSON).
+#   3. Add the rest of the env vars as GitHub secrets:
+#      META_VERIFY_TOKEN, META_APP_SECRET, META_ACCESS_TOKEN,
+#      META_PHONE_NUMBER_ID, SHEET_ID
+#   4. Uncomment the `on:` trigger block below.
+
+name: Deploy to Cloud Functions
+
+# on:
+#   push:
+#     branches: [main]
+#   workflow_dispatch:
+
+on:
+  workflow_dispatch:  # manual trigger only — safe default
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Cloud Functions
+        run: |
+          gcloud functions deploy whatsappWebhook \
+            --gen2 \
+            --region=asia-south1 \
+            --runtime=nodejs20 \
+            --source=. \
+            --entry-point=whatsappWebhook \
+            --trigger-http \
+            --allow-unauthenticated \
+            --memory=256Mi \
+            --timeout=60s \
+            --set-env-vars="META_VERIFY_TOKEN=${{ secrets.META_VERIFY_TOKEN }},META_APP_SECRET=${{ secrets.META_APP_SECRET }},META_ACCESS_TOKEN=${{ secrets.META_ACCESS_TOKEN }},META_PHONE_NUMBER_ID=${{ secrets.META_PHONE_NUMBER_ID }},SHEET_ID=${{ secrets.SHEET_ID }},TZ=Asia/Kolkata"

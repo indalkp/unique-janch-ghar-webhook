@@ -1,0 +1,6 @@
+{
+  "id": "home",
+  "hindi": "होम कलेक्शन के लिए धन्यवाद {{patientName}} 🙏\n\n✅ हम आपके घर से सैंपल कलेक्ट करते हैं\n✅ ट्रेन्ड फ्लेबोटोमिस्ट\n✅ कोई अतिरिक्त शुल्क नहीं (न्यूनतम बिल पर)\n\nकृपया भेजें:\n1) मरीज़ का नाम\n2) पूरा पता और लैंडमार्क\n3) कौन सी जांच\n4) पसंदीदा समय (सुबह 7-10 बजे सबसे अच्छा)\n\nहमारी टीम कन्फर्म करके आएगी।",
+  "english": "Thanks for asking about home collection {{patientName}} 🙏\n\n✅ Sample picked up from your home\n✅ Trained phlebotomist\n✅ No extra charge above minimum bill\n\nPlease share:\n1) Patient name\n2) Full address with landmark\n3) Which test(s)\n4) Preferred slot (7–10 AM works best)\n\nOur team will confirm and visit.",
+  "combined": "होम कलेक्शन के लिए धन्यवाद {{patientName}} 🙏\n\n✅ घर से सैंपल / Pickup from your home\n✅ ट्रेन्ड फ्लेबोटोमिस्ट / Trained phlebotomist\n✅ कोई अतिरिक्त शुल्क नहीं (न्यूनतम बिल पर) / No extra charge above min. bill\n\nकृपया भेजें / Please share:\n1) मरीज़ का नाम / Patient name\n2) पूरा पता व लैंडमार्क / Full address with landmark\n3) कौन सी जांच / Which test(s)\n4) पसंदीदा समय / Preferred slot (7–10 AM best)\n\nहमारी टीम कन्फर्म करके आएगी।\nOur team will confirm and visit."
+}

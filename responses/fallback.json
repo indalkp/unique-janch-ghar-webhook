@@ -1,0 +1,6 @@
+{
+  "id": "fallback",
+  "hindi": "क्षमा करें {{patientName}} 🙏\nमुझे आपका मैसेज पूरी तरह समझ नहीं आया।\n\nनीचे दिए गए मेनू से एक विकल्प चुनें — हमारी टीम आपकी सहायता करेगी।\n\nआप इन में से कोई शब्द भी लिख सकते हैं: REPORT, BOOK, HOME, PRICE, MENU",
+  "english": "Sorry {{patientName}} 🙏\nI didn't quite understand that.\n\nPlease pick an option from the menu below — our team will help you.\n\nYou can also reply with: REPORT, BOOK, HOME, PRICE, MENU",
+  "combined": "क्षमा करें {{patientName}} 🙏 / Sorry 🙏\nमुझे आपका मैसेज पूरी तरह समझ नहीं आया।\nI didn't quite understand that.\n\nनीचे मेनू से चुनें या ये शब्द लिखें / Pick from the menu below, or reply with:\nREPORT • BOOK • HOME • PRICE • MENU"
+}

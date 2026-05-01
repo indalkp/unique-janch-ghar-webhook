@@ -1,0 +1,35 @@
+# Files NOT uploaded to Cloud Functions on `gcloud functions deploy`.
+# Saves cold-start time and keeps the deployed bundle small.
+
+# VCS
+.git/
+.gitignore
+.gitattributes
+
+# Tests — not needed at runtime
+test/
+*.test.js
+
+# CI
+.github/
+
+# Docs — not needed at runtime
+README.md
+ARCHIVE.md
+LICENSE
+docs/
+
+# Local env (we pass env vars via --env-vars-file or --set-env-vars instead)
+.env
+.env.yaml
+.env.example
+.env.yaml.example
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

@@ -1,0 +1,6 @@
+{
+  "id": "price",
+  "hindi": "रेट जानने के लिए धन्यवाद {{patientName}} 🙏\n\nकृपया बताएं कौन सी जांच करवानी है (जैसे CBC, Thyroid, LFT, KFT, Vitamin D, HbA1c आदि)।\n\nहमारी टीम 10 मिनट में आपको पूरा रेट और छूट की जानकारी भेज देगी।\n\n💡 पैकेज में अधिक छूट मिलती है। पूरी रेट लिस्ट के लिए \"PRICE LIST\" लिखकर भेजें।",
+  "english": "Thanks for asking about rates {{patientName}} 🙏\n\nPlease tell us which test(s) you need (e.g. CBC, Thyroid, LFT, KFT, Vitamin D, HbA1c, etc.).\n\nOur team will send the rate and any discount within 10 minutes.\n\n💡 Packages get a bigger discount. Reply \"PRICE LIST\" for the full list.",
+  "combined": "रेट जानने के लिए धन्यवाद {{patientName}} 🙏\nThanks for asking about rates 🙏\n\nकृपया बताएं कौन सी जांच / Which test(s)?\n(e.g. CBC, Thyroid, LFT, KFT, Vitamin D, HbA1c)\n\nहम 10 मिनट में पूरा रेट व छूट भेज देंगे।\nWe'll share the rate + discount within 10 minutes.\n\n💡 Package mein zyada discount milta hai. Full list ke liye \"PRICE LIST\" likhें."
+}
