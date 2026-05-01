@@ -1,18 +1,22 @@
 /**
- * src/sheets.js — Google Sheets append client.
+ * src/sheets.js â€” Google Sheets append client.
  *
  * Auth: uses Application Default Credentials (ADC). On Cloud Functions Gen 2
- * this is the function's service account — no JSON key file needed.
+ * this is the function's service account â€” no JSON key file needed.
  * The target Sheet must be shared with that service account email
  * (Editor permission). The README explains how.
  *
- * Sheet tabs the lab pipeline expects:
- *   Inbound    — every customer message we received
- *   Outbound   — every reply we sent (logged from actions.js call sites)
- *   Status     — delivery / read receipts from Meta
- *   Customers  — wa_id → name, last_seen, etc. (one row per unique number)
+ * Sheet tabs the lab pipeline expects, with the EXACT column order the
+ * live Sheet uses (verified 2026-05-01):
+ *   Inbound   : timestamp_iso | wa_id | name | message_type | message_text |
+ *               keyword_detected | action_taken | replied | responder
+ *   Outbound  : timestamp_iso | wa_id | message_id | message_type | body | sent_by
+ *   Status    : timestamp_iso | message_id | recipient_wa_id | status |
+ *               error_code | conversation_type
+ *   Customers : wa_id | display_name | first_seen | last_seen |
+ *               total_messages | last_keyword | tags | notes
  *
- * If a tab does not exist, append throws — we surface the error and keep going
+ * If a tab does not exist, append throws â€” we surface the error and keep going
  * (we never block the user response on Sheet failures).
  */
 
@@ -44,7 +48,7 @@ async function getClient() {
 
 /**
  * Append a row to a tab. Caller decides column order.
- * @param {string} tab    — tab name, e.g. "Inbound"
+ * @param {string} tab    â€” tab name, e.g. "Inbound"
  * @param {Array<string|number|boolean|null>} row
  */
 async function appendRow(tab, row) {
@@ -64,7 +68,7 @@ async function appendRow(tab, row) {
       error: err.message,
       code: err.code || null,
     });
-    // Do NOT rethrow — Sheet failures must not break the customer reply.
+    // Do NOT rethrow â€” Sheet failures must not break the customer reply.
   }
 }
 
@@ -79,10 +83,28 @@ async function appendRow(tab, row) {
  * @property {string} messageId
  */
 
-/** @param {InboundRow} r */
+/**
+ * Inbound row â€” column order matches live Sheet:
+ *   timestamp_iso | wa_id | name | message_type | message_text |
+ *   keyword_detected | action_taken | replied | responder
+ *
+ * @param {InboundRow} r
+ */
 async function logInbound(r) {
+  // action_taken: what the webhook did with this inbound (which response file
+  // we sent, or "fallback"). replied: "auto" because all replies are bot-driven
+  // in free-tier mode. responder: "webhook" so staff can filter manual replies.
+  const actionTaken = r.keyword ? `auto_reply:${r.keyword.toLowerCase()}` : 'auto_reply:fallback';
   return appendRow('Inbound', [
-    r.timestamp, r.wa_id, r.name, r.type, r.text, r.keyword, r.messageId,
+    r.timestamp,
+    r.wa_id,
+    r.name,
+    r.type,
+    r.text,
+    r.keyword || '',
+    actionTaken,
+    'auto',
+    'webhook',
   ]);
 }
 
@@ -95,10 +117,20 @@ async function logInbound(r) {
  * @property {string} messageId
  */
 
-/** @param {OutboundRow} r */
+/**
+ * Outbound row â€” column order matches live Sheet:
+ *   timestamp_iso | wa_id | message_id | message_type | body | sent_by
+ *
+ * @param {OutboundRow} r
+ */
 async function logOutbound(r) {
   return appendRow('Outbound', [
-    r.timestamp, r.wa_id, r.type, r.preview, r.messageId,
+    r.timestamp,
+    r.wa_id,
+    r.messageId,
+    r.type,
+    r.preview,
+    'webhook',
   ]);
 }
 
@@ -109,29 +141,51 @@ async function logOutbound(r) {
  * @property {string} status
  * @property {string} messageId
  * @property {string} errorCode
+ * @property {string} [conversationType]
  */
 
-/** @param {StatusRow} r */
+/**
+ * Status row â€” column order matches live Sheet:
+ *   timestamp_iso | message_id | recipient_wa_id | status |
+ *   error_code | conversation_type
+ *
+ * @param {StatusRow} r
+ */
 async function logStatus(r) {
   return appendRow('Status', [
-    r.timestamp, r.wa_id, r.status, r.messageId, r.errorCode || '',
+    r.timestamp,
+    r.messageId,
+    r.wa_id,
+    r.status,
+    r.errorCode || '',
+    r.conversationType || '',
   ]);
 }
 
 /**
- * Add a Customers row. We append every time and let a Sheet formula
- * de-duplicate by wa_id (UNIQUE() / QUERY()). Documented in README.
+ * Append a Customers row. The live Sheet uses a per-customer schema with
+ * first_seen / last_seen / total_messages columns; lab staff handle de-dup
+ * via a UNIQUE() / QUERY() formula on a separate tab if desired.
+ *
+ * Column order matches live Sheet:
+ *   wa_id | display_name | first_seen | last_seen |
+ *   total_messages | last_keyword | tags | notes
  *
  * @param {string} wa_id
- * @param {{name?:string, lastMessage?:string}} data
+ * @param {{name?:string, lastMessage?:string, lastKeyword?:string}} data
  */
 async function upsertCustomer(wa_id, data) {
   data = data || {};
+  const now = new Date().toISOString();
   return appendRow('Customers', [
-    new Date().toISOString(),
     wa_id,
     data.name || '',
-    data.lastMessage || '',
+    now,                       // first_seen â€” UNIQUE formula collapses to earliest
+    now,                       // last_seen
+    1,                         // total_messages â€” SUM via QUERY for true total
+    data.lastKeyword || '',
+    '',                        // tags
+    data.lastMessage || '',    // notes â€” useful free-form context
   ]);
 }
 

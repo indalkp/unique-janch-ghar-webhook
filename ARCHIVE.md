@@ -99,7 +99,7 @@ Variables: name, date, test.
 ### 5. `lab_promotion_health_camp_v1` (Marketing, hi)
 
 > नमस्ते 🙏 इस महीने Unique Janch Ghar में {{1}} जांच पर {{2}}% की छूट।
-> बुक करने के लिए BOOK लिखें या कॉल करें +91 [LAB_PHONE].
+> बुक करने के लिए BOOK लिखें या कॉल करें +91 9798586981.
 >
 > Reply STOP to opt out.
 

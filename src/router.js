@@ -1,25 +1,9 @@
 /**
- * src/router.js — Inbound webhook event router.
+ * src/router.js â€” Inbound webhook event router (Gen 2 safe).
  *
- * Meta's webhook payload is an envelope:
- *   { object: "whatsapp_business_account",
- *     entry: [ { changes: [ { value: { messages?, statuses?, contacts? } } ] } ] }
- *
- * For each entry we look at value.messages (incoming) and value.statuses
- * (delivery receipts). One payload can contain multiple of either.
- *
- * Decision flow for an incoming message:
- *   1. Log to Sheet (Inbound tab) and update Customers tab.
- *   2. If after-hours, send the after-hours auto-reply and stop.
- *   3. Resolve the message text/button-id/list-id to a keyword.
- *   4. Dispatch:
- *        REPORT → sendResponse('report')
- *        BOOK   → sendResponse('book')
- *        HOME   → sendResponse('home')
- *        PRICE  → sendResponse('price')
- *        MENU   → sendMenu(to)
- *        null   → sendResponse('fallback') + sendMenu(to)
- *   4. Mark the inbound message as read (blue ticks).
+ * Cloud Functions Gen 2 freezes the instance the moment res.send() flushes.
+ * Therefore EVERY async call must be awaited (or pushed to Promise.allSettled)
+ * before this function returns â€” orphaned promises die.
  */
 
 'use strict';
@@ -30,16 +14,9 @@ const { logInbound, logStatus, upsertCustomer } = require('./sheets');
 const { config } = require('./config');
 const { log } = require('./logger');
 
-/**
- * Is the current time inside after-hours window?
- * Window crosses midnight, so we check (hour >= start || hour < end).
- * Uses the configured timezone (default Asia/Kolkata).
- * @returns {boolean}
- */
 function isAfterHours() {
   const start = config.AFTERHOURS_START;
   const end = config.AFTERHOURS_END;
-  // Get hour in the configured timezone using Intl (avoids extra deps).
   const fmt = new Intl.DateTimeFormat('en-GB', {
     timeZone: config.TZ || 'Asia/Kolkata',
     hour: '2-digit',
@@ -47,17 +24,11 @@ function isAfterHours() {
   });
   const hour = parseInt(fmt.format(new Date()), 10);
   if (start > end) {
-    // Wraps midnight, e.g. 21..8.
     return hour >= start || hour < end;
   }
   return hour >= start && hour < end;
 }
 
-/**
- * Pull the user-visible text out of any inbound message type.
- * @param {Object} msg  — single message object from value.messages
- * @returns {string}
- */
 function extractText(msg) {
   switch (msg.type) {
     case 'text':
@@ -81,84 +52,78 @@ function extractText(msg) {
   }
 }
 
-/**
- * Handle one inbound message.
- * @param {Object} msg       — value.messages[i]
- * @param {Object} contact   — value.contacts[i] (may be undefined)
- */
 async function handleMessage(msg, contact) {
   const wa_id = msg.from;
   const name = contact?.profile?.name || '';
   const text = extractText(msg);
   const keyword = keywordToAction(text);
+  const tasks = [];
 
-  // 1. Log + customer upsert (don't await — fire-and-forget so reply isn't blocked).
-  logInbound({
-    timestamp: new Date().toISOString(),
-    wa_id,
-    name,
-    type: msg.type,
-    text,
-    keyword: keyword || '',
-    messageId: msg.id,
-  });
-  upsertCustomer(wa_id, { name, lastMessage: text });
+  // Sheet log + customer upsert run in parallel with the reply.
+  // Pushed onto tasks[] so Promise.allSettled at the end ensures completion
+  // before the function returns (Gen 2 freeze fix).
+  tasks.push(
+    logInbound({
+      timestamp: new Date().toISOString(),
+      wa_id,
+      name,
+      type: msg.type,
+      text,
+      keyword: keyword || '',
+      messageId: msg.id,
+    })
+  );
+  tasks.push(upsertCustomer(wa_id, { name, lastMessage: text, lastKeyword: keyword || '' }));
 
-  // 2. After-hours short-circuit.
+  // After-hours short-circuit.
   if (isAfterHours()) {
-    await sendResponse(wa_id, 'afterhours', { patientName: name });
-    markRead(msg.id);
+    tasks.push(sendResponse(wa_id, 'afterhours', { patientName: name }));
+    tasks.push(markRead(msg.id));
+    await Promise.allSettled(tasks);
     return;
   }
 
-  // 3. Dispatch on keyword.
+  // Dispatch on keyword.
   switch (keyword) {
     case 'REPORT':
-      await sendResponse(wa_id, 'report', { patientName: name });
+      tasks.push(sendResponse(wa_id, 'report', { patientName: name }));
       break;
     case 'BOOK':
-      await sendResponse(wa_id, 'book', { patientName: name });
+      tasks.push(sendResponse(wa_id, 'book', { patientName: name }));
       break;
     case 'HOME':
-      await sendResponse(wa_id, 'home', { patientName: name });
+      tasks.push(sendResponse(wa_id, 'home', { patientName: name }));
       break;
     case 'PRICE':
-      await sendResponse(wa_id, 'price', { patientName: name });
+      tasks.push(sendResponse(wa_id, 'price', { patientName: name }));
       break;
     case 'MENU':
-      await sendResponse(wa_id, 'greeting', { patientName: name });
-      await sendMenu(wa_id);
+      tasks.push(sendResponse(wa_id, 'greeting', { patientName: name }));
+      tasks.push(sendMenu(wa_id));
       break;
     default:
-      // No keyword matched — say so, then offer the menu.
-      await sendResponse(wa_id, 'fallback', { patientName: name });
-      await sendMenu(wa_id);
+      tasks.push(sendResponse(wa_id, 'fallback', { patientName: name }));
+      tasks.push(sendMenu(wa_id));
   }
 
-  // 4. Blue ticks.
-  markRead(msg.id);
+  // Blue ticks.
+  tasks.push(markRead(msg.id));
+
+  // Wait for everything â€” Sheet writes, sends, mark-read.
+  await Promise.allSettled(tasks);
 }
 
-/**
- * Handle one delivery / read / failed status update.
- * @param {Object} st  — value.statuses[i]
- */
 async function handleStatus(st) {
-  logStatus({
+  await logStatus({
     timestamp: new Date().toISOString(),
     wa_id: st.recipient_id,
     status: st.status,
     messageId: st.id,
     errorCode: st.errors?.[0]?.code || '',
+    conversationType: st.conversation?.origin?.type || '',
   });
 }
 
-/**
- * Top-level router — called from index.js after signature verification.
- * Iterates through Meta's nested envelope and dispatches to handlers.
- *
- * @param {Object} body  — parsed JSON request body
- */
 async function routeEvent(body) {
   if (!body || body.object !== 'whatsapp_business_account') {
     log.warn('router.unexpected_object', { object: body?.object });
@@ -171,7 +136,6 @@ async function routeEvent(body) {
       const value = change.value || {};
       const contacts = value.contacts || [];
 
-      // Pair messages with their contact (same index) where possible.
       for (let i = 0; i < (value.messages || []).length; i++) {
         const msg = value.messages[i];
         const contact = contacts[i] || contacts[0];
@@ -183,8 +147,6 @@ async function routeEvent(body) {
     }
   }
 
-  // Wait for all handlers — but each one already swallows its own errors,
-  // so this Promise.all won't reject in normal operation.
   await Promise.allSettled(tasks);
 }
 
@@ -192,7 +154,6 @@ module.exports = {
   routeEvent,
   handleMessage,
   handleStatus,
-  // Exported for tests:
   extractText,
   isAfterHours,
 };
