@@ -55,6 +55,47 @@ Flow: `WhatsApp → Meta → GCF → Sheet`. Lab staff `→ Sheet (read)`.
 
 ---
 
+## v2 — Conversational Flows (feature branch `feat/bot-v2-flows`)
+
+v2 replaces the keyword-only auto-reply with five customer-facing flows
+built on WhatsApp **list** and **reply-button** messages. Implementation
+lives on `feat/bot-v2-flows`; merge + deploy notes live in
+`outputs/UJG-BOT-V2-PR.md` (the PR description).
+
+```
+inbound msg
+   │
+   ▼
+router.js
+   ├─ rate-limit (10/60s, in-memory per instance)
+   ├─ detectLang (Devanagari → 'hi', else 'en')
+   ├─ getState(wa_id) ──► ConvoState tab (30 s read cache)
+   ├─ if 'menu' / idle → showMenu()
+   └─ else → flow.handle(input, state)
+                │
+                ├─ flows/menu.js     (top-level list)
+                ├─ flows/book.js     (entry → test → date → slot → confirm)
+                ├─ flows/status.js   (lookup by ID or name in Bookings)
+                ├─ flows/catalog.js  (categories → tests → detail → book)
+                ├─ flows/info.js     (static hours/address)
+                └─ flows/handoff.js  (callback request → Handoff tab)
+```
+
+**New Sheet tabs (created by `scripts/init-sheet-tabs.js`):**
+
+| Tab        | Purpose                                | Columns                                                                                       |
+| ---------- | -------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Bookings   | Each test booking from the Book flow   | booking_id · timestamp · wa_id · customer_name · test · date · slot · status · notes          |
+| Catalog    | Test catalogue (price, sample, TAT)    | category · test_name · price_inr · sample_required · fasting_hours · turnaround_hours · notes |
+| ConvoState | Per-customer conversation state        | wa_id · current_flow · current_step · context_json · updated_at                               |
+| Handoff    | Callback requests from Handoff flow    | timestamp · wa_id · customer_name · preferred_callback_time · status · notes                  |
+
+**i18n:** all customer-visible strings in `src/lang.js`, both `hi` and `en`.
+
+**Caches:** ConvoState reads 30 s; Catalog reads 5 min — bounded API calls.
+
+---
+
 ## What the webhook does
 
 | Customer says                 | Webhook replies with                         |
