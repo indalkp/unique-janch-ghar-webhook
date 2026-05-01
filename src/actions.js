@@ -7,6 +7,14 @@
  *   Template-message logic was deliberately moved to /optional-paid/ —
  *   see ARCHIVE.md when the lab decides to go paid.
  *
+ * v2 additions:
+ *   sendInteractiveList(to, header, body, button, sections) — list message
+ *   sendInteractiveButtons(to, body, buttons)               — reply buttons (max 3)
+ *   sendText(to, body)                                       — plain text
+ *
+ * Each helper returns { ok, response } — on failure ok=false and response
+ * carries the Meta error so the caller can decide whether to swallow or log.
+ *
  * Endpoint shape:
  *   POST https://graph.facebook.com/{version}/{phone-number-id}/messages
  *   Authorization: Bearer {META_ACCESS_TOKEN}
@@ -31,56 +39,50 @@ function loadResponse(name) {
 /**
  * Substitute {{var}} placeholders. Missing vars become "" so we never leak
  * raw template strings to a customer.
- * @param {string} template
- * @param {Record<string,string>} vars
- * @returns {string}
  */
 function fill(template, vars = {}) {
   return template.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] || '');
 }
 
 /**
- * Low-level Meta Cloud API call. Uses native fetch (Node 18+).
- * @param {Object} payload  — full message body
- * @returns {Promise<Object>}  — Meta's JSON response
+ * Low-level Meta Cloud API call. Returns { ok, response }.
+ * Never throws — callers shouldn't have to wrap every send in try/catch.
  */
 async function metaPost(payload) {
   const url = `https://graph.facebook.com/${config.GRAPH_API_VERSION}/${config.META_PHONE_NUMBER_ID}/messages`;
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.META_ACCESS_TOKEN}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const json = await res.json().catch(() => ({}));
-
-  if (!res.ok) {
-    log.error('meta.send.failed', {
-      status: res.status,
-      error: json.error || null,
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.META_ACCESS_TOKEN}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      log.error('meta.send.failed', {
+        status: res.status,
+        error: json.error || null,
+        type: payload.type,
+        to: payload.to,
+      });
+      return { ok: false, response: json };
+    }
+    log.info('meta.send.ok', {
       type: payload.type,
       to: payload.to,
+      messageId: json.messages?.[0]?.id || null,
     });
-    throw new Error(`Meta API ${res.status}: ${json.error?.message || 'unknown'}`);
+    return { ok: true, response: json };
+  } catch (err) {
+    log.error('meta.send.threw', { error: err.message, type: payload.type });
+    return { ok: false, response: { error: { message: err.message } } };
   }
-
-  log.info('meta.send.ok', {
-    type: payload.type,
-    to: payload.to,
-    messageId: json.messages?.[0]?.id || null,
-  });
-  return json;
 }
 
 /**
  * Build the "combined" Hindi+English text from a response file.
- * @param {{hindi:string,english:string,combined?:string}} resp
- * @param {Record<string,string>} vars
- * @returns {string}
  */
 function buildCombined(resp, vars) {
   const text = resp.combined || `${resp.hindi}\n\n— English —\n${resp.english}`;
@@ -88,26 +90,22 @@ function buildCombined(resp, vars) {
 }
 
 /**
- * Send a plain text message.
+ * Send a plain text message. Alias-friendly: also exported as `send`.
  * @param {string} to     — E.164 without '+', e.g. "919876543210"
- * @param {string} text
- * @returns {Promise<Object>}
+ * @param {string} body
  */
-async function sendText(to, text) {
+async function sendText(to, body) {
   return metaPost({
     messaging_product: 'whatsapp',
     recipient_type: 'individual',
     to,
     type: 'text',
-    text: { body: text, preview_url: false },
+    text: { body, preview_url: false },
   });
 }
 
 /**
- * Send a response file as text (Hindi + English combined).
- * @param {string} to
- * @param {string} responseName  — file in responses/ without extension
- * @param {Record<string,string>} [vars]
+ * Send a response file as text (Hindi + English combined). Kept for v1 callers.
  */
 async function sendResponse(to, responseName, vars = {}) {
   const resp = loadResponse(responseName);
@@ -116,8 +114,7 @@ async function sendResponse(to, responseName, vars = {}) {
 }
 
 /**
- * Send the interactive list menu — 5 keyword options.
- * @param {string} to
+ * Send the v1 keyword-driven interactive list menu. Kept for backward-compat.
  */
 async function sendMenu(to) {
   const menu = loadResponse('menu');
@@ -131,24 +128,60 @@ async function sendMenu(to) {
 }
 
 /**
- * Generic interactive list sender — kept for future use.
+ * v2: Send a WhatsApp List Message.
  * @param {string} to
- * @param {Object} interactivePayload  — already-built `interactive` body
+ * @param {string} headerText  — short header (max 60 chars)
+ * @param {string} bodyText    — main body (max 1024 chars)
+ * @param {string} buttonText  — text on the trigger button (max 20 chars)
+ * @param {Array<{title:string, rows:Array<{id:string,title:string,description?:string}>}>} sections
+ *        — up to 10 sections, max 10 rows total across all sections
  */
-async function sendInteractiveList(to, interactivePayload) {
+async function sendInteractiveList(to, headerText, bodyText, buttonText, sections) {
   return metaPost({
     messaging_product: 'whatsapp',
     recipient_type: 'individual',
     to,
     type: 'interactive',
-    interactive: interactivePayload,
+    interactive: {
+      type: 'list',
+      header: headerText ? { type: 'text', text: truncate(headerText, 60) } : undefined,
+      body: { text: truncate(bodyText, 1024) },
+      action: {
+        button: truncate(buttonText, 20),
+        sections,
+      },
+    },
+  });
+}
+
+/**
+ * v2: Send up to 3 quick-reply buttons.
+ * @param {string} to
+ * @param {string} bodyText
+ * @param {Array<{id:string, title:string}>} buttons  — max 3, title <= 20 chars
+ */
+async function sendInteractiveButtons(to, bodyText, buttons) {
+  // WhatsApp hard limit: 3 buttons, 20 chars per title.
+  const safe = (buttons || []).slice(0, 3).map((b) => ({
+    type: 'reply',
+    reply: { id: b.id, title: truncate(b.title, 20) },
+  }));
+  return metaPost({
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to,
+    type: 'interactive',
+    interactive: {
+      type: 'button',
+      body: { text: truncate(bodyText, 1024) },
+      action: { buttons: safe },
+    },
   });
 }
 
 /**
  * Mark an inbound message as read. Optional but customers see "blue ticks"
  * which is reassurance. Free.
- * @param {string} messageId  — id from inbound message object
  */
 async function markRead(messageId) {
   const url = `https://graph.facebook.com/${config.GRAPH_API_VERSION}/${config.META_PHONE_NUMBER_ID}/messages`;
@@ -164,18 +197,30 @@ async function markRead(messageId) {
       message_id: messageId,
     }),
   }).catch((err) => {
-    // Non-fatal — log and move on.
     log.warn('meta.mark_read.failed', { error: err.message, messageId });
   });
 }
 
+// ----- helpers --------------------------------------------------------------
+
+function truncate(s, n) {
+  if (typeof s !== 'string') return s;
+  return s.length > n ? s.slice(0, n) : s;
+}
+
 module.exports = {
+  // v1 (kept):
   sendText,
   sendResponse,
   sendMenu,
-  sendInteractiveList,
   markRead,
-  // Exported for testing only:
+  // v2:
+  sendInteractiveList,
+  sendInteractiveButtons,
+  // alias the brief asked for:
+  send: sendText,
+  // exported for tests:
   fill,
   buildCombined,
+  metaPost,
 };
