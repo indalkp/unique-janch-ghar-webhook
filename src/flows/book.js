@@ -1,23 +1,19 @@
 /**
- * src/flows/book.js — "Book Test" flow.
+ * src/flows/book.js  "Book Test" flow with multi-test cart (v2.1).
  *
  * Step machine:
- *   entry         → buttons [Common tests, Doctor referred, Type test name]
- *   pick_common   → list with 10 popular tests
- *   type_name     → free-text "what test?"
- *   pick_date     → buttons [Today, Tomorrow, Pick a date]
- *   custom_date   → free-text DD/MM
- *   pick_slot     → buttons [Morning 7-10, Afternoon 10-12]
- *   confirm       → buttons [Confirm, Cancel]
- *   done          → write Bookings row, send confirmation, clear state
- *
- * Each handler:
- *   - reads the inbound event (text or interactive id)
- *   - sends 0..N outbound messages
- *   - persists next-step state
+ *   entry                     buttons [Common tests, Doctor referred, Type test name]
+ *   pick_common               list with 10 popular tests
+ *   type_name                 free-text "what test?"
+ *   awaiting_more_or_proceed  buttons [Add Another, Proceed] (loops back on Add)
+ *   pick_date                 buttons [Today, Tomorrow, Pick a date]
+ *   custom_date               free-text DD/MM
+ *   pick_slot                 buttons [Morning 7-10, Afternoon 10-12]
+ *   confirm                   buttons [Confirm, Cancel]
+ *   done                      write ONE Bookings row (csv tests + total_price)
  *
  * State context shape:
- *   { lang, name, test, date, slot }
+ *   { lang, name, cart: [{name, price}], date, slot }
  */
 
 'use strict';
@@ -27,39 +23,29 @@ const { setState, clearState } = require('../state');
 const { appendRow } = require('../sheets');
 const { t } = require('../lang');
 
-// Top-of-list popular tests. Pulled from catalog-data manually to avoid a
-// runtime Sheet read on every Book entry — these 10 don't change often.
+// Top-of-list popular tests with INR prices.
 const POPULAR_TESTS = [
-  'CBC (Complete Blood Count)',
-  'LFT (Liver Function Test)',
-  'KFT (Kidney Function Test)',
-  'Lipid Profile',
-  'HbA1c',
-  'TSH',
-  'Vitamin D',
-  'Vitamin B12',
-  'Urine R/M',
-  'Blood Sugar Fasting',
+  { name: 'CBC (Complete Blood Count)', price: 250 },
+  { name: 'LFT (Liver Function Test)',  price: 500 },
+  { name: 'KFT (Kidney Function Test)', price: 500 },
+  { name: 'Lipid Profile',              price: 500 },
+  { name: 'HbA1c',                      price: 450 },
+  { name: 'TSH',                        price: 350 },
+  { name: 'Vitamin D',                  price: 800 },
+  { name: 'Vitamin B12',                price: 700 },
+  { name: 'Urine R/M',                  price: 100 },
+  { name: 'Blood Sugar Fasting',        price:  50 },
 ];
 
-/**
- * Generate a short booking ID. Format: UJG-{YYMMDD}-{4-digit-random}.
- * Not a strong unique ID — fine for a small lab; collisions are extremely
- * unlikely at the scale and easy to spot in the Sheet.
- */
 function newBookingId() {
   const d = new Date();
-  const yy = String(d.getFullYear()).slice(2);
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  const r = Math.floor(1000 + Math.random() * 9000);
-  return `UJG-${yy}${mm}${dd}-${r}`;
+  const yymmdd = String(d.getFullYear()).slice(2)
+    + String(d.getMonth() + 1).padStart(2, '0')
+    + String(d.getDate()).padStart(2, '0');
+  const rand = String(Math.floor(1000 + Math.random() * 9000));
+  return 'UJG-' + yymmdd + '-' + rand;
 }
 
-/**
- * Format DD/MM as a friendly date string anchored to current year. Returns
- * null if the input doesn't look like DD/MM.
- */
 function parseDdMm(text) {
   const m = (text || '').trim().match(/^(\d{1,2})\/(\d{1,2})$/);
   if (!m) return null;
@@ -67,23 +53,69 @@ function parseDdMm(text) {
   const mon = parseInt(m[2], 10);
   if (day < 1 || day > 31 || mon < 1 || mon > 12) return null;
   const yyyy = new Date().getFullYear();
-  return `${String(day).padStart(2, '0')}/${String(mon).padStart(2, '0')}/${yyyy}`;
+  return String(day).padStart(2, '0') + '/' + String(mon).padStart(2, '0') + '/' + yyyy;
 }
 
 function todayLabel() {
   const d = new Date();
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
 }
+
 function tomorrowLabel() {
   const d = new Date();
   d.setDate(d.getDate() + 1);
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
 }
 
-/**
- * Send the date-pick buttons. Used twice — extracted so step transitions stay
- * clean.
- */
+// --- Cart helpers ---------------------------------------------------------
+
+function cartTotal(cart) {
+  return (cart || []).reduce((sum, it) => sum + (Number(it.price) || 0), 0);
+}
+
+function cartNamesCsv(cart) {
+  return (cart || []).map((it) => it.name).join(', ');
+}
+
+function cartLines(cart) {
+  return (cart || [])
+    .map((it) => ' ' + it.name + ' ' + (Number(it.price) || 0))
+    .join('\n');
+}
+
+// --- Outbound prompt helpers ----------------------------------------------
+
+async function promptCommonList(wa_id, lang) {
+  const sections = [{
+    title: t('book.list.header', lang),
+    rows: POPULAR_TESTS.map((tt, i) => ({
+      id: 'bt_' + i,
+      title: tt.name.length > 24 ? tt.name.slice(0, 24) : tt.name,
+      description: '' + tt.price,
+    })),
+  }];
+  await sendInteractiveList(
+    wa_id,
+    t('book.list.header', lang),
+    t('book.list.body', lang),
+    t('book.list.button', lang),
+    sections,
+  );
+}
+
+async function promptAddedAndChoice(wa_id, lang, cart, lastItem) {
+  const total = cartTotal(cart);
+  const body = t('cart.added', lang, {
+    test: lastItem.name,
+    price: Number(lastItem.price) || 0,
+    total: total,
+  });
+  await sendInteractiveButtons(wa_id, body, [
+    { id: 'cart_add_more', title: t('cart.add_more', lang) },
+    { id: 'cart_proceed',  title: t('cart.proceed', lang) },
+  ]);
+}
+
 async function promptDate(wa_id, lang) {
   await sendInteractiveButtons(wa_id, t('book.prompt.date', lang), [
     { id: 'date_today',    title: t('book.date.today', lang) },
@@ -92,9 +124,6 @@ async function promptDate(wa_id, lang) {
   ]);
 }
 
-/**
- * Send the slot-pick buttons.
- */
 async function promptSlot(wa_id, lang) {
   await sendInteractiveButtons(wa_id, t('book.prompt.slot', lang), [
     { id: 'slot_morning',   title: t('book.slot.morning', lang) },
@@ -102,102 +131,92 @@ async function promptSlot(wa_id, lang) {
   ]);
 }
 
-/**
- * Send the confirmation summary + buttons.
- */
 async function promptConfirm(wa_id, lang, ctx) {
-  await sendInteractiveButtons(
-    wa_id,
-    t('book.confirm.body', lang, { test: ctx.test, date: ctx.date, slot: ctx.slot }),
-    [
-      { id: 'confirm_yes', title: t('book.confirm.yes', lang) },
-      { id: 'confirm_no',  title: t('book.confirm.no', lang) },
-    ],
-  );
+  const total = cartTotal(ctx.cart);
+  const body = t('book.confirm.body', lang, {
+    items: cartLines(ctx.cart),
+    total: total,
+    date: ctx.date || '',
+    slot: ctx.slot || '',
+  });
+  await sendInteractiveButtons(wa_id, body, [
+    { id: 'confirm_yes', title: t('book.confirm.yes', lang) },
+    { id: 'confirm_no',  title: t('book.confirm.no', lang) },
+  ]);
 }
 
-/**
- * Entry — first time the customer hits "Book Test" from the menu (or via
- * pre-selected test from the catalog flow).
- *
- * @param {string} wa_id
- * @param {'hi'|'en'} lang
- * @param {{test?:string, name?:string}} [seed] — optional pre-selected test
- */
-async function start(wa_id, lang, seed = {}) {
-  // If catalog pre-selected a test, skip straight to date picking.
-  if (seed.test) {
-    await setState(wa_id, 'book', 'pick_date', { lang, test: seed.test, name: seed.name || '' });
-    return promptDate(wa_id, lang);
-  }
+// --- Entry ----------------------------------------------------------------
 
+async function start(wa_id, lang, seed = {}) {
+  if (seed.test) {
+    const cart = [{ name: seed.test, price: Number(seed.price) || 0 }];
+    await promptAddedAndChoice(wa_id, lang, cart, cart[0]);
+    await setState(wa_id, 'book', 'awaiting_more_or_proceed', {
+      lang: lang,
+      name: seed.name || '',
+      cart: cart,
+    });
+    return;
+  }
   await sendInteractiveButtons(wa_id, t('book.entry.body', lang), [
     { id: 'book_common',   title: t('book.entry.common', lang) },
     { id: 'book_referred', title: t('book.entry.referred', lang) },
     { id: 'book_type',     title: t('book.entry.type', lang) },
   ]);
-  await setState(wa_id, 'book', 'entry', { lang, name: seed.name || '' });
+  await setState(wa_id, 'book', 'entry', { lang: lang, name: seed.name || '', cart: [] });
 }
 
-/**
- * Handle an inbound event while the customer is in the book flow.
- *
- * @param {string} wa_id
- * @param {string} input   — extracted text/id from the inbound message
- * @param {Object} state   — { flow, step, context }
- * @returns {Promise<void>}
- */
+// --- Main handler ---------------------------------------------------------
+
 async function handle(wa_id, input, state) {
   const lang = state.context.lang || 'en';
-  const ctx = { ...state.context };
+  const ctx = Object.assign({}, state.context);
+  if (!Array.isArray(ctx.cart)) ctx.cart = [];
   const step = state.step;
   const norm = (input || '').trim().toLowerCase();
 
   switch (step) {
     case 'entry': {
       if (norm === 'book_common' || norm.includes('common')) {
-        // List of popular tests.
-        const sections = [{
-          title: t('book.list.header', lang),
-          rows: POPULAR_TESTS.map((name, i) => ({
-            id: `bt_${i}`,
-            title: name.length > 24 ? name.slice(0, 24) : name,
-            description: name,
-          })),
-        }];
-        await sendInteractiveList(
-          wa_id,
-          t('book.list.header', lang),
-          t('book.list.body', lang),
-          t('book.list.button', lang),
-          sections,
-        );
+        await promptCommonList(wa_id, lang);
         await setState(wa_id, 'book', 'pick_common', ctx);
         return;
       }
-      // Doctor referred / type test name — both prompt for free text.
       await sendText(wa_id, t('book.prompt.name', lang));
       await setState(wa_id, 'book', 'type_name', ctx);
       return;
     }
 
     case 'pick_common': {
-      // The customer either picked a row (id starts with bt_) or typed a name.
-      let test;
+      let item;
       const m = norm.match(/^bt_(\d+)$/);
       if (m) {
-        test = POPULAR_TESTS[parseInt(m[1], 10)] || input;
+        const idx = parseInt(m[1], 10);
+        const t0 = POPULAR_TESTS[idx];
+        item = t0 ? { name: t0.name, price: t0.price } : { name: input, price: 0 };
       } else {
-        test = input;
+        item = { name: input, price: 0 };
       }
-      ctx.test = test;
-      await promptDate(wa_id, lang);
-      await setState(wa_id, 'book', 'pick_date', ctx);
+      ctx.cart.push(item);
+      await promptAddedAndChoice(wa_id, lang, ctx.cart, item);
+      await setState(wa_id, 'book', 'awaiting_more_or_proceed', ctx);
       return;
     }
 
     case 'type_name': {
-      ctx.test = input.trim();
+      const item = { name: (input || '').trim(), price: 0 };
+      ctx.cart.push(item);
+      await promptAddedAndChoice(wa_id, lang, ctx.cart, item);
+      await setState(wa_id, 'book', 'awaiting_more_or_proceed', ctx);
+      return;
+    }
+
+    case 'awaiting_more_or_proceed': {
+      if (norm === 'cart_add_more' || norm.includes('add')) {
+        await promptCommonList(wa_id, lang);
+        await setState(wa_id, 'book', 'pick_common', ctx);
+        return;
+      }
       await promptDate(wa_id, lang);
       await setState(wa_id, 'book', 'pick_date', ctx);
       return;
@@ -213,7 +232,6 @@ async function handle(wa_id, input, state) {
         await setState(wa_id, 'book', 'custom_date', ctx);
         return;
       } else {
-        // Treat the text as a custom date.
         const parsed = parseDdMm(input);
         if (!parsed) {
           await sendText(wa_id, t('book.invalid.date', lang));
@@ -248,45 +266,51 @@ async function handle(wa_id, input, state) {
     }
 
     case 'confirm': {
-      if (norm === 'confirm_no' || norm.includes('cancel') || norm.includes('रद्द')) {
+      if (norm === 'confirm_no' || norm.includes('cancel') || norm.includes('')) {
         await sendText(wa_id, t('book.cancelled', lang));
         await clearState(wa_id);
         return;
       }
-      // Default: treat anything else as confirm. Friendlier for tap-happy users.
       const id = newBookingId();
+      const tests = cartNamesCsv(ctx.cart);
+      const total = cartTotal(ctx.cart);
       const row = [
         id,
         new Date().toISOString(),
         wa_id,
         ctx.name || '',
-        ctx.test || '',
+        tests,
         ctx.date || '',
         ctx.slot || '',
         'PENDING',
-        '', // notes
+        '',
+        total,
       ];
-      // Best-effort write — appendRow swallows errors (sheets.js policy).
       await appendRow('Bookings', row);
       await sendText(wa_id, t('book.success', lang, {
-        id, test: ctx.test, date: ctx.date, slot: ctx.slot,
+        id: id,
+        items: cartLines(ctx.cart),
+        total: total,
+        date: ctx.date,
+        slot: ctx.slot,
       }));
       await clearState(wa_id);
       return;
     }
 
     default: {
-      // Unknown step — recover by restarting the flow.
       return start(wa_id, lang, { name: ctx.name });
     }
   }
 }
 
 module.exports = {
-  start,
-  handle,
-  POPULAR_TESTS,
-  // exported for tests
-  parseDdMm,
-  newBookingId,
+  start: start,
+  handle: handle,
+  POPULAR_TESTS: POPULAR_TESTS,
+  parseDdMm: parseDdMm,
+  newBookingId: newBookingId,
+  cartTotal: cartTotal,
+  cartNamesCsv: cartNamesCsv,
+  cartLines: cartLines,
 };
