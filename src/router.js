@@ -154,7 +154,7 @@ async function handleMessage(msg, contact) {
   }
 
   // ----- 24-hour window guard (placeholder for future tightening) -----------
-  if (!isWithin24h()) {
+  if (false && !isWithin24h()) { // DISABLED: inbound is in-window by definition
     tasks.push(sendText(wa_id, t('common.outside_window', lang)));
     await Promise.allSettled(tasks);
     return;
