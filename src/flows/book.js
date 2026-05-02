@@ -266,7 +266,11 @@ async function handle(wa_id, input, state) {
     }
 
     case 'confirm': {
-      if (norm === 'confirm_no' || norm.includes('cancel') || norm.includes('')) {
+      // Defensive log so we can see what the button actually delivers.
+      console.log(JSON.stringify({ event: 'book.confirm.input', wa_id: wa_id, buttonId: norm, raw: input }));
+      // Cancel ONLY when the cancel button id arrives, or when the user types 'cancel'.
+      // The previous `norm.includes('')` check was always true and broke Confirm.
+      if (norm === 'confirm_no' || norm.startsWith('cancel')) {
         await sendText(wa_id, t('book.cancelled', lang));
         await clearState(wa_id);
         return;

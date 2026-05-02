@@ -31,10 +31,10 @@ function t(key, lang, vars = {}) {
 
 const STRINGS = {
   // ---- Welcome / menu ----
-  'welcome.title':       { en: 'Welcome to *Unique Janch Ghar* _(formerly Hi-tech Patho Lab Rajgir)_ ', hi: '*  * _( -   )_     ' },
+  'welcome.title':       { en: 'Welcome to Unique Janch Ghar', hi: 'Unique Janch Ghar mein aapka swagat hai' },
   'welcome.body':        {
-    en: 'How can we help you today? Pick an option below.',
-    hi: '      ?    ',
+    en: '_(formerly Hi-tech Patho Lab Rajgir)_\n\nHow can we help you today? Pick an option below.',
+    hi: '_(पहले हाई-टेक पैथो लैब राजगीर)_\n\nहम आपकी कैसे मदद कर सकते हैं? नीचे से विकल्प चुनें।',
   },
   'menu.button':         { en: 'Open Menu', hi: ' ' },
   'menu.section.title':  { en: 'Services', hi: '' },

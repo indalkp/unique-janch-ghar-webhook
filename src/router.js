@@ -37,7 +37,7 @@ const infoFlow    = require('./flows/info');
 const handoffFlow = require('./flows/handoff');
 
 // Words that always reset the conversation back to the main menu.
-const MENU_TRIGGERS = ['menu', 'मेनू', 'start', 'शुरू', 'hi', 'hello', 'नमस्ते', 'help', 'मदद'];
+const MENU_TRIGGERS = ['menu', 'मेनू', 'start', 'शुरू', 'hi', 'hello', 'namaste', 'namaskar', 'नमस्ते', 'नमस्कार', 'help', 'मदद'];
 
 // Maps a top-level menu row id → flow start fn.
 const FLOW_STARTERS = {

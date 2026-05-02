@@ -17,7 +17,7 @@
  *   setState(wa_id, flow, step, context)         -> upsert + cache update
  *   clearState(wa_id)                            -> set flow=idle
  *   recordRateLimit(wa_id)                       -> push timestamp into window
- *   isRateLimited(wa_id, max=10, windowMs=60000) -> boolean
+ *   isRateLimited(wa_id, max=20, windowMs=60000) -> boolean
  */
 
 'use strict';
@@ -199,7 +199,7 @@ function recordRateLimit(wa_id, windowMs = 60 * 1000) {
  * @param {number} [windowMs]
  * @returns {boolean}
  */
-function isRateLimited(wa_id, max = 10, windowMs = 60 * 1000) {
+function isRateLimited(wa_id, max = 20, windowMs = 60 * 1000) {
   const arr = rateLimitWindows.get(wa_id) || [];
   const now = Date.now();
   const fresh = arr.filter((t) => now - t < windowMs);
