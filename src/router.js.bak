@@ -147,7 +147,7 @@ async function handleMessage(msg, contact) {
   tasks.push(markRead(msg.id));
 
   // ----- After-hours short-circuit ------------------------------------------
-  if (false && isAfterHours()) { // DISABLED: bot serves 24/7; staff fulfills during business hours
+  if (isAfterHours()) {
     tasks.push(sendText(wa_id, t('common.outside_window', lang)));
     await Promise.allSettled(tasks);
     return;
