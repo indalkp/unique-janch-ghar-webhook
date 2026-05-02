@@ -1,13 +1,13 @@
 /**
- * src/sheets.js â€” Google Sheets append client.
+ * src/sheets.js — Google Sheets append client (v2.2).
  *
  * Auth: uses Application Default Credentials (ADC). On Cloud Functions Gen 2
- * this is the function's service account â€” no JSON key file needed.
+ * this is the function's service account — no JSON key file needed.
  * The target Sheet must be shared with that service account email
- * (Editor permission). The README explains how.
+ * (Editor permission).
  *
- * Sheet tabs the lab pipeline expects, with the EXACT column order the
- * live Sheet uses (verified 2026-05-01):
+ * Sheet tabs the lab pipeline expects, with the column order the live Sheet
+ * uses (verified 2026-05-02):
  *   Inbound   : timestamp_iso | wa_id | name | message_type | message_text |
  *               keyword_detected | action_taken | replied | responder
  *   Outbound  : timestamp_iso | wa_id | message_id | message_type | body | sent_by
@@ -15,8 +15,12 @@
  *               error_code | conversation_type
  *   Customers : wa_id | display_name | first_seen | last_seen |
  *               total_messages | last_keyword | tags | notes
+ *   Bookings  : booking_id (A) | timestamp (B) | wa_id (C) | customer_name (D) |
+ *               tests (E) | date (F) | slot (G) | status (H) | notes (I) |
+ *               total (J) | reserved (K) | reserved (L) |
+ *               pickup_address (M) | maps_link (N)         ← v2.2 added
  *
- * If a tab does not exist, append throws â€” we surface the error and keep going
+ * If a tab does not exist, append throws — we log the error and keep going
  * (we never block the user response on Sheet failures).
  */
 
@@ -48,7 +52,7 @@ async function getClient() {
 
 /**
  * Append a row to a tab. Caller decides column order.
- * @param {string} tab    â€” tab name, e.g. "Inbound"
+ * @param {string} tab    — tab name, e.g. "Inbound"
  * @param {Array<string|number|boolean|null>} row
  */
 async function appendRow(tab, row) {
@@ -68,8 +72,47 @@ async function appendRow(tab, row) {
       error: err.message,
       code: err.code || null,
     });
-    // Do NOT rethrow â€” Sheet failures must not break the customer reply.
+    // Do NOT rethrow — Sheet failures must not break the customer reply.
   }
+}
+
+/**
+ * v2.2 — append a Bookings row with all 14 columns including pickup_address (M)
+ * and maps_link (N). Cols K and L are reserved (filled with '') so the M/N
+ * positions are stable regardless of future schema additions.
+ *
+ * @param {Object} b
+ * @param {string} b.booking_id
+ * @param {string} b.timestamp
+ * @param {string} b.wa_id
+ * @param {string} b.customer_name
+ * @param {string} b.tests
+ * @param {string} b.date
+ * @param {string} b.slot
+ * @param {string} b.status
+ * @param {string} b.notes
+ * @param {number} b.total
+ * @param {string} [b.pickup_address]
+ * @param {string} [b.maps_link]
+ */
+async function appendBooking(b) {
+  const row = [
+    b.booking_id,             // A
+    b.timestamp,              // B
+    b.wa_id,                  // C
+    b.customer_name || '',    // D
+    b.tests || '',            // E
+    b.date || '',             // F
+    b.slot || '',             // G
+    b.status || 'PENDING',    // H
+    b.notes || '',            // I
+    Number(b.total) || 0,     // J
+    '',                       // K — reserved for payment_mode
+    '',                       // L — reserved for payment_status
+    b.pickup_address || '',   // M
+    b.maps_link || '',        // N
+  ];
+  return appendRow('Bookings', row);
 }
 
 /**
@@ -84,16 +127,13 @@ async function appendRow(tab, row) {
  */
 
 /**
- * Inbound row â€” column order matches live Sheet:
+ * Inbound row — column order matches live Sheet:
  *   timestamp_iso | wa_id | name | message_type | message_text |
  *   keyword_detected | action_taken | replied | responder
  *
  * @param {InboundRow} r
  */
 async function logInbound(r) {
-  // action_taken: what the webhook did with this inbound (which response file
-  // we sent, or "fallback"). replied: "auto" because all replies are bot-driven
-  // in free-tier mode. responder: "webhook" so staff can filter manual replies.
   const actionTaken = r.keyword ? `auto_reply:${r.keyword.toLowerCase()}` : 'auto_reply:fallback';
   return appendRow('Inbound', [
     r.timestamp,
@@ -118,7 +158,7 @@ async function logInbound(r) {
  */
 
 /**
- * Outbound row â€” column order matches live Sheet:
+ * Outbound row — column order matches live Sheet:
  *   timestamp_iso | wa_id | message_id | message_type | body | sent_by
  *
  * @param {OutboundRow} r
@@ -145,7 +185,7 @@ async function logOutbound(r) {
  */
 
 /**
- * Status row â€” column order matches live Sheet:
+ * Status row — column order matches live Sheet:
  *   timestamp_iso | message_id | recipient_wa_id | status |
  *   error_code | conversation_type
  *
@@ -163,9 +203,7 @@ async function logStatus(r) {
 }
 
 /**
- * Append a Customers row. The live Sheet uses a per-customer schema with
- * first_seen / last_seen / total_messages columns; lab staff handle de-dup
- * via a UNIQUE() / QUERY() formula on a separate tab if desired.
+ * Append a Customers row.
  *
  * Column order matches live Sheet:
  *   wa_id | display_name | first_seen | last_seen |
@@ -180,19 +218,140 @@ async function upsertCustomer(wa_id, data) {
   return appendRow('Customers', [
     wa_id,
     data.name || '',
-    now,                       // first_seen â€” UNIQUE formula collapses to earliest
-    now,                       // last_seen
-    1,                         // total_messages â€” SUM via QUERY for true total
+    now,
+    now,
+    1,
     data.lastKeyword || '',
-    '',                        // tags
-    data.lastMessage || '',    // notes â€” useful free-form context
+    '',
+    data.lastMessage || '',
   ]);
+}
+
+// =============================================================================
+// v2.2 — Bridge-backed helpers for find/update + StaffAlerts management
+// =============================================================================
+
+const { bridgeGet, bridgePost } = require('./sheets-bridge');
+
+const BOOKINGS_RANGE = 'A2:P1000'; // up to 999 rows; tune if needed
+
+/**
+ * Find a booking row by booking_id. Reads via bridge so we don't need a full
+ * googleapis read implementation. Returns null if not found or bridge unavailable.
+ */
+async function findBookingById(bookingId) {
+  const r = await bridgeGet('read', { sheet: 'Bookings', range: BOOKINGS_RANGE });
+  if (!r || !r.data) return null;
+  for (let i = 0; i < r.data.length; i++) {
+    const row = r.data[i];
+    if (String(row[0]) === String(bookingId)) {
+      return {
+        row_index: i + 2, // +2 because data starts at row 2 (header at row 1)
+        booking_id: row[0] || '',
+        timestamp: row[1] || '',
+        wa_id: row[2] || '',
+        customer_name: row[3] || '',
+        tests: row[4] || '',
+        date: row[5] || '',
+        slot: row[6] || '',
+        status: row[7] || '',
+        notes: row[8] || '',
+        total_price: row[9] || 0,
+        payment_method: row[10] || '',
+        payment_ref: row[11] || '',
+        pickup_address: row[12] || '',
+        maps_link: row[13] || '',
+        actioned_by: row[14] || '',
+        actioned_at: row[15] || '',
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * Update a booking's status + actioned_by + actioned_at. Writes 3 cells in
+ * the matched row. Returns {ok, error?}.
+ */
+async function updateBookingAction(bookingId, statusLabel, actor, atIso) {
+  const booking = await findBookingById(bookingId);
+  if (!booking) return { ok: false, error: 'booking not found' };
+  const rowNum = booking.row_index;
+  // Status is column H (8), actioned_by O (15), actioned_at P (16).
+  // Bridge `write` takes a contiguous range. Status is far from O/P, so two writes.
+  const r1 = await bridgePost('write', { sheet: 'Bookings' }, {
+    range: 'H' + rowNum,
+    values: [[statusLabel]],
+  });
+  if (r1?.error) return { ok: false, error: r1.error };
+  const r2 = await bridgePost('write', { sheet: 'Bookings' }, {
+    range: 'O' + rowNum + ':P' + rowNum,
+    values: [[actor, atIso]],
+  });
+  if (r2?.error) return { ok: false, error: r2.error };
+  return { ok: true };
+}
+
+/**
+ * Returns true if the staff wa_id has a last_active_at within `windowMs`.
+ */
+async function isStaffActive(wa_id, windowMs) {
+  const status = await getStaffActiveStatus(wa_id);
+  if (!status) return false;
+  if (!status.last_active_at) return false;
+  const t = Date.parse(status.last_active_at);
+  if (!Number.isFinite(t)) return false;
+  return (Date.now() - t) < windowMs;
+}
+
+/**
+ * Read StaffAlerts row for a wa_id. Returns null if tab missing or wa_id absent.
+ */
+async function getStaffActiveStatus(wa_id) {
+  const r = await bridgeGet('read', { sheet: 'StaffAlerts', range: 'A2:D100' });
+  if (!r || !r.data) return null;
+  for (let i = 0; i < r.data.length; i++) {
+    const row = r.data[i];
+    if (String(row[0]) === String(wa_id)) {
+      return {
+        row_index: i + 2,
+        wa_id: row[0] || '',
+        name: row[1] || '',
+        alerts_subscribed: String(row[3] || '').toLowerCase(),
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * Upsert a StaffAlerts row's last_active_at. If row missing, append it.
+ */
+async function upsertStaffActive(wa_id, atIso, displayName) {
+  const existing = await getStaffActiveStatus(wa_id);
+  if (existing) {
+    await bridgePost('write', { sheet: 'StaffAlerts' }, {
+      range: 'C' + existing.row_index,
+      values: [[atIso]],
+    });
+    return { ok: true, action: 'updated', row: existing.row_index };
+  }
+  await bridgePost('append', { sheet: 'StaffAlerts' }, {
+    values: [[wa_id, displayName || '', atIso, 'yes']],
+  });
+  return { ok: true, action: 'appended' };
 }
 
 module.exports = {
   appendRow,
+  appendBooking,
   logInbound,
   logOutbound,
   logStatus,
   upsertCustomer,
+  findBookingById,
+  updateBookingAction,
+  isStaffActive,
+  getStaffActiveStatus,
+  upsertStaffActive,
 };

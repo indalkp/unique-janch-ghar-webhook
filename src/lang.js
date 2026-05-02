@@ -1,17 +1,20 @@
 /**
- * src/lang.js  Language detection + i18n strings.
+ * src/lang.js — Language detection + i18n strings (v2.2).
  *
- * Strategy:
- *   detectLang(text) returns 'hi' if any Devanagari character (range -)
- *   appears in the text, else 'en'.
+ * detectLang(text)  — returns 'hi' if Devanagari range characters appear, else 'en'.
+ * t(key, lang, vars) — returns the localized string. Missing keys return the key
+ * itself (so we surface gaps instead of crashing).
  *
- *   t(key, lang, vars) returns the localized string. Missing keys return the
- *   key itself (so we surface gaps instead of crashing).
+ * v2.2 additions:
+ *   - welcome.text / menu.title.short / menu.body — for the new 2-message welcome
+ *   - book.location.* — sample-pickup location prompt + handlers
+ *   - book.confirm.body / book.success — pickup_address line in summary
  */
 
 'use strict';
 
-const DEVANAGARI = /[-]/;
+// Devanagari Unicode range U+0900..U+097F.
+const DEVANAGARI = /[ऀ-ॿ]/;
 
 function detectLang(text) {
   if (typeof text !== 'string') return 'en';
@@ -30,120 +33,159 @@ function t(key, lang, vars = {}) {
 }
 
 const STRINGS = {
-  // ---- Welcome / menu ----
+  // ---- Welcome / menu (v2.2: split into text + list) ----
   'welcome.title':       { en: 'Welcome to Unique Janch Ghar', hi: 'Unique Janch Ghar mein aapka swagat hai' },
   'welcome.body':        {
     en: '_(formerly Hi-tech Patho Lab Rajgir)_\n\nHow can we help you today? Pick an option below.',
     hi: '_(पहले हाई-टेक पैथो लैब राजगीर)_\n\nहम आपकी कैसे मदद कर सकते हैं? नीचे से विकल्प चुनें।',
   },
-  'menu.button':         { en: 'Open Menu', hi: ' ' },
-  'menu.section.title':  { en: 'Services', hi: '' },
-  'menu.book':           { en: 'Book Test', hi: '  ' },
-  'menu.book.desc':      { en: 'Book a pathology test', hi: '   ' },
-  'menu.status':         { en: 'Check Report Status', hi: '  ' },
-  'menu.status.desc':    { en: 'Find your booking by name or ID', hi: '    ID  ' },
-  'menu.catalog':        { en: 'Pricing & Tests', hi: '   ' },
-  'menu.catalog.desc':   { en: 'Browse tests by category', hi: '    ' },
-  'menu.info':           { en: 'Hours & Directions', hi: '  ' },
-  'menu.info.desc':      { en: 'Lab hours, phone, address', hi: '  , , ' },
-  'menu.handoff':        { en: 'Talk to Staff', hi: '   ' },
-  'menu.handoff.desc':   { en: 'Request a callback', hi: '    ' },
+  // v2.2 — full plain-text welcome that lands at the top of the chat.
+  'welcome.text':        {
+    en: '🩺 *Welcome to Unique Janch Ghar* / *यूनिक जाँच घर में आपका स्वागत है*\n_(formerly Hi-tech Patho Lab Rajgir)_\n_(पहले हाई-टेक पैथो लैब राजगीर)_\n\nHow can we help you today? / आज हम कैसे मदद कर सकते हैं?',
+    hi: '🩺 *यूनिक जाँच घर में आपका स्वागत है* / *Welcome to Unique Janch Ghar*\n_(पहले हाई-टेक पैथो लैब राजगीर)_\n_(formerly Hi-tech Patho Lab Rajgir)_\n\nआज हम कैसे मदद कर सकते हैं? / How can we help you today?',
+  },
+  // v2.2 — short header so List title fits within 60 chars.
+  'menu.title.short':    { en: '📋 Choose an option', hi: '📋 विकल्प चुनें' },
+  'menu.body':           { en: 'Pick a service below.', hi: 'नीचे से सेवा चुनें।' },
+  'menu.button':         { en: 'Open Menu', hi: 'मेनू खोलें' },
+  'menu.section.title':  { en: 'Services', hi: 'सेवाएँ' },
+  'menu.book':           { en: 'Book Test', hi: 'टेस्ट बुक करें' },
+  'menu.book.desc':      { en: 'Book a pathology test', hi: 'पैथोलॉजी टेस्ट बुक करें' },
+  'menu.status':         { en: 'Check Report Status', hi: 'रिपोर्ट स्थिति देखें' },
+  'menu.status.desc':    { en: 'Find your booking by name or ID', hi: 'नाम या ID से बुकिंग खोजें' },
+  'menu.catalog':        { en: 'Pricing & Tests', hi: 'मूल्य और टेस्ट' },
+  'menu.catalog.desc':   { en: 'Browse tests by category', hi: 'कैटेगरी से टेस्ट देखें' },
+  'menu.info':           { en: 'Hours & Directions', hi: 'समय और पता' },
+  'menu.info.desc':      { en: 'Lab hours, phone, address', hi: 'लैब का समय, फ़ोन, पता' },
+  'menu.handoff':        { en: 'Talk to Staff', hi: 'स्टाफ़ से बात करें' },
+  'menu.handoff.desc':   { en: 'Request a callback', hi: 'कॉलबैक का अनुरोध' },
 
   // ---- Book flow ----
-  'book.entry.body':     { en: 'How would you like to choose your test?', hi: '    ?' },
-  'book.entry.common':   { en: 'Common Tests', hi: ' ' },
-  'book.entry.referred': { en: 'Doctor Referred', hi: ' ' },
-  'book.entry.type':     { en: 'Type Test Name', hi: '   ' },
-  'book.list.header':    { en: 'Common Tests', hi: ' ' },
-  'book.list.body':      { en: 'Pick a test from the list.', hi: '    ' },
-  'book.list.button':    { en: 'View Tests', hi: ' ' },
-  'book.prompt.name':    { en: 'Type the test name (e.g. CBC, LFT, Lipid Profile).', hi: '    ( CBC, LFT,  )' },
-  'book.prompt.date':    { en: 'When would you like to come? Pick a day:', hi: '   ?   :' },
-  'book.date.today':     { en: 'Today', hi: '' },
-  'book.date.tomorrow':  { en: 'Tomorrow', hi: '' },
-  'book.date.pick':      { en: 'Pick a Date', hi: ' ' },
-  'book.prompt.date.custom': { en: 'Type the date as DD/MM (e.g. 12/05).', hi: ' DD/MM   ( 12/05)' },
-  'book.invalid.date':   { en: 'That date does not look right. Type DD/MM (e.g. 12/05).', hi: '    DD/MM   ( 12/05)' },
-  'book.prompt.slot':    { en: 'Pick a time slot:', hi: ' :' },
-  'book.slot.morning':   { en: 'Morning 7-10', hi: ' 7-10' },
-  'book.slot.afternoon': { en: 'Afternoon 10-12', hi: ' 10-12' },
+  'book.entry.body':     { en: 'How would you like to choose your test?', hi: 'टेस्ट कैसे चुनना चाहेंगे?' },
+  'book.entry.common':   { en: 'Common Tests', hi: 'सामान्य टेस्ट' },
+  'book.entry.referred': { en: 'Doctor Referred', hi: 'डॉक्टर रेफ़र्ड' },
+  'book.entry.type':     { en: 'Type Test Name', hi: 'टेस्ट का नाम लिखें' },
+  'book.list.header':    { en: 'Common Tests', hi: 'सामान्य टेस्ट' },
+  'book.list.body':      { en: 'Pick a test from the list.', hi: 'सूची से एक टेस्ट चुनें।' },
+  'book.list.button':    { en: 'View Tests', hi: 'टेस्ट देखें' },
+  'book.prompt.name':    { en: 'Type the test name (e.g. CBC, LFT, Lipid Profile).', hi: 'टेस्ट का नाम लिखें (जैसे CBC, LFT, लिपिड)।' },
+  'book.prompt.date':    { en: 'When would you like to come? Pick a day:', hi: 'कब आना चाहेंगे? दिन चुनें:' },
+  'book.date.today':     { en: 'Today', hi: 'आज' },
+  'book.date.tomorrow':  { en: 'Tomorrow', hi: 'कल' },
+  'book.date.pick':      { en: 'Pick a Date', hi: 'तारीख़ चुनें' },
+  'book.prompt.date.custom': { en: 'Type the date as DD/MM (e.g. 12/05).', hi: 'तारीख़ DD/MM में लिखें (जैसे 12/05)।' },
+  'book.invalid.date':   { en: 'That date does not look right. Type DD/MM (e.g. 12/05).', hi: 'तारीख़ सही नहीं लगती। DD/MM में लिखें (जैसे 12/05)।' },
+  'book.prompt.slot':    { en: 'Pick a time slot:', hi: 'समय चुनें:' },
+  'book.slot.morning':   { en: 'Morning 7-10', hi: 'सुबह 7-10' },
+  'book.slot.afternoon': { en: 'Afternoon 10-12', hi: 'दोपहर 10-12' },
+
+  // ---- Location step (v2.2) ----
+  'book.location.prompt': {
+    en: '📍 Share location for sample pickup / सैंपल पिकअप के लिए लोकेशन भेजें\n\nWhere should our team come? / कहाँ आना है हमारी टीम को?',
+    hi: '📍 सैंपल पिकअप के लिए लोकेशन भेजें / Share location for sample pickup\n\nकहाँ आना है हमारी टीम को? / Where should our team come?',
+  },
+  'book.location.btn_send':  { en: '📍 Send Location',     hi: '📍 लोकेशन भेजें' },
+  'book.location.btn_type':  { en: '📝 Type Address',      hi: '📝 पता लिखें' },
+  'book.location.btn_visit': { en: '🏥 Visit Lab Instead', hi: '🏥 लैब आऊँगा' },
+  'book.location.send_instruction': {
+    en: 'Tap the 📎 attachment icon → Location → Send your current location.\n\nनीचे 📎 आइकन दबाएँ → Location → अपनी मौजूदा लोकेशन भेजें।',
+    hi: 'नीचे 📎 आइकन दबाएँ → Location → अपनी मौजूदा लोकेशन भेजें।\n\nTap the 📎 attachment icon → Location → Send your current location.',
+  },
+  'book.location.text_prompt': {
+    en: 'Type the full address (house, area, landmarks, pincode):',
+    hi: 'पूरा पता लिखें (मकान, इलाक़ा, लैंडमार्क, पिनकोड):',
+  },
+  'book.location.visit_lab': {
+    en: '🏥 *Visit our lab*\nUnique Janch Ghar (formerly Hi-tech Patho Lab Rajgir)\nNear RX India Pharma, opp. Sub-Divisional Hospital,\nRajgir, Nalanda, Bihar 803116\n\n🕒 Mon–Sat 7AM–9PM, Sun 7AM–12PM\n📞 +91 9798586981',
+    hi: '🏥 *लैब आइए*\nयूनिक जाँच घर (पहले हाई-टेक पैथो लैब राजगीर)\nRX India Pharma के पास, सब-डिविज़नल हॉस्पिटल के सामने,\nराजगीर, नालंदा, बिहार 803116\n\n🕒 सोम–शनि 7AM–9PM, रवि 7AM–12PM\n📞 +91 9798586981',
+  },
+  'book.location.got_share': {
+    en: '✅ Got your pickup location: {{address}}',
+    hi: '✅ पिकअप लोकेशन मिल गई: {{address}}',
+  },
+  'book.location.got_text': {
+    en: '✅ Got your pickup address: {{address}}',
+    hi: '✅ पिकअप पता मिल गया: {{address}}',
+  },
+
+  // ---- Confirm + success (v2.2: address line) ----
   'book.confirm.body':   {
-    en: 'Booking summary:\n{{items}}\nTotal: {{total}}\nDate: {{date}}\nSlot: {{slot}}',
-    hi: ' :\n{{items}}\n: {{total}}\n: {{date}}\n: {{slot}}',
+    en: 'Booking summary:\n{{items}}\nTotal: ₹{{total}}\nDate: {{date}}\nSlot: {{slot}}\nPickup: {{address}}',
+    hi: 'बुकिंग सारांश:\n{{items}}\nकुल: ₹{{total}}\nतारीख़: {{date}}\nसमय: {{slot}}\nपिकअप: {{address}}',
   },
-  'book.confirm.yes':    { en: 'Confirm', hi: ' ' },
-  'book.confirm.no':     { en: 'Cancel', hi: ' ' },
+  'book.confirm.yes':    { en: 'Confirm', hi: 'कन्फ़र्म' },
+  'book.confirm.no':     { en: 'Cancel', hi: 'रद्द' },
   'book.success':        {
-    en: ' Booking saved \n\nBooking ID: {{id}}\n{{items}}\nTotal: {{total}}\nDate: {{date}}\nSlot: {{slot}}\n\nOur team will call you to confirm. Reply MENU to start over.',
-    hi: '     \n\n ID: {{id}}\n{{items}}\n: {{total}}\n: {{date}}\n: {{slot}}\n\n       MENU ',
+    en: '✅ Booking saved\n\nBooking ID: {{id}}\n{{items}}\nTotal: ₹{{total}}\nDate: {{date}}\nSlot: {{slot}}\nPickup: {{address}}\n\nOur team will call you to confirm. Reply MENU to start over.',
+    hi: '✅ बुकिंग सेव हो गई\n\nबुकिंग ID: {{id}}\n{{items}}\nकुल: ₹{{total}}\nतारीख़: {{date}}\nसमय: {{slot}}\nपिकअप: {{address}}\n\nहमारी टीम कन्फ़र्म करने के लिए कॉल करेगी। फिर से शुरू करने के लिए MENU भेजें।',
   },
-  'book.cancelled':      { en: 'Booking cancelled. Reply MENU to start over.', hi: '     MENU ' },
+  'book.cancelled':      { en: 'Booking cancelled. Reply MENU to start over.', hi: 'बुकिंग रद्द। फिर से शुरू करने के लिए MENU भेजें।' },
 
   // ---- Cart (multi-test, v2.1) ----
   'cart.added':          {
-    en: 'Added  {{test}}. {{price}} added to cart. Total {{total}}.',
-    hi: '  {{test}}. {{price}}   {{total}}',
+    en: 'Added {{test}}. ₹{{price}} added to cart. Total ₹{{total}}.',
+    hi: '{{test}} जोड़ा गया। ₹{{price}} कार्ट में जुड़ा। कुल ₹{{total}}।',
   },
-  'cart.add_more':       { en: ' Add Another', hi: '   ' },
-  'cart.proceed':        { en: ' Proceed', hi: '  ' },
+  'cart.add_more':       { en: 'Add Another', hi: 'और जोड़ें' },
+  'cart.proceed':        { en: 'Proceed', hi: 'आगे बढ़ें' },
   'cart.summary':        {
-    en: 'Cart:\n{{items}}\nTotal: {{total}}',
-    hi: ':\n{{items}}\n: {{total}}',
+    en: 'Cart:\n{{items}}\nTotal: ₹{{total}}',
+    hi: 'कार्ट:\n{{items}}\nकुल: ₹{{total}}',
   },
 
-  'status.prompt':       { en: 'Type your name OR your booking ID (e.g. UJG-1234).', hi: '    ID ' },
+  'status.prompt':       { en: 'Type your name OR your booking ID (e.g. UJG-1234).', hi: 'अपना नाम या बुकिंग ID लिखें (जैसे UJG-1234)।' },
   'status.found':        {
-    en: ' Booking {{id}}\nTest: {{test}}\nDate: {{date}} {{slot}}\nStatus: {{status}}\n\n{{note}}',
-    hi: '  {{id}}\n: {{test}}\n: {{date}} {{slot}}\n: {{status}}\n\n{{note}}',
+    en: 'Booking {{id}}\nTest: {{test}}\nDate: {{date}} {{slot}}\nStatus: {{status}}\n\n{{note}}',
+    hi: 'बुकिंग {{id}}\nटेस्ट: {{test}}\nतारीख़: {{date}} {{slot}}\nस्थिति: {{status}}\n\n{{note}}',
   },
-  'status.not_found.body': { en: 'No booking found.', hi: '   ' },
-  'status.book_new':     { en: 'Book New', hi: ' ' },
-  'status.main_menu':    { en: 'Main Menu', hi: ' ' },
-  'status.note.pending':   { en: 'Sample not yet collected.', hi: '    ' },
-  'status.note.confirmed': { en: 'Booking confirmed.', hi: '   ' },
-  'status.note.collected': { en: 'Sample collected. Report processing.', hi: '    ' },
-  'status.note.ready':     { en: 'Report is ready.', hi: '  ' },
-  'status.note.cancelled': { en: 'This booking was cancelled.', hi: '      ' },
+  'status.not_found.body': { en: 'No booking found.', hi: 'कोई बुकिंग नहीं मिली।' },
+  'status.book_new':     { en: 'Book New', hi: 'नई बुकिंग' },
+  'status.main_menu':    { en: 'Main Menu', hi: 'मुख्य मेनू' },
+  'status.note.pending':   { en: 'Sample not yet collected.', hi: 'सैंपल अभी नहीं लिया गया।' },
+  'status.note.confirmed': { en: 'Booking confirmed.', hi: 'बुकिंग कन्फ़र्म।' },
+  'status.note.collected': { en: 'Sample collected. Report processing.', hi: 'सैंपल लिया गया। रिपोर्ट तैयार हो रही है।' },
+  'status.note.ready':     { en: 'Report is ready.', hi: 'रिपोर्ट तैयार है।' },
+  'status.note.cancelled': { en: 'This booking was cancelled.', hi: 'यह बुकिंग रद्द कर दी गई।' },
 
-  'catalog.header':      { en: 'Pricing & Tests', hi: '  ' },
-  'catalog.body':        { en: 'Pick a category.', hi: '  ' },
-  'catalog.button':      { en: 'Categories', hi: '' },
-  'catalog.section':     { en: 'Categories', hi: '' },
-  'catalog.cat.hematology':   { en: 'Hematology', hi: '' },
-  'catalog.cat.biochemistry': { en: 'Biochemistry', hi: ' ' },
-  'catalog.cat.hormones':     { en: 'Hormones', hi: '' },
-  'catalog.cat.diabetes':     { en: 'Diabetes', hi: '' },
-  'catalog.cat.vitamins':     { en: 'Vitamins', hi: '' },
-  'catalog.cat.urinalysis':   { en: 'Urinalysis', hi: ' ' },
-  'catalog.cat.microbiology': { en: 'Microbiology', hi: '  ' },
-  'catalog.cat.special':      { en: 'Special Tests', hi: ' ' },
-  'catalog.tests.header':     { en: 'Tests in {{category}}', hi: '{{category}}  ' },
-  'catalog.tests.body':       { en: 'Pick a test for details.', hi: '   ' },
-  'catalog.tests.button':     { en: 'View', hi: '' },
+  'catalog.header':      { en: 'Pricing & Tests', hi: 'मूल्य और टेस्ट' },
+  'catalog.body':        { en: 'Pick a category.', hi: 'कैटेगरी चुनें।' },
+  'catalog.button':      { en: 'Categories', hi: 'कैटेगरी' },
+  'catalog.section':     { en: 'Categories', hi: 'कैटेगरी' },
+  'catalog.cat.hematology':   { en: 'Hematology', hi: 'हीमेटोलॉजी' },
+  'catalog.cat.biochemistry': { en: 'Biochemistry', hi: 'बायोकेमिस्ट्री' },
+  'catalog.cat.hormones':     { en: 'Hormones', hi: 'हॉर्मोन' },
+  'catalog.cat.diabetes':     { en: 'Diabetes', hi: 'डायबिटीज़' },
+  'catalog.cat.vitamins':     { en: 'Vitamins', hi: 'विटामिन' },
+  'catalog.cat.urinalysis':   { en: 'Urinalysis', hi: 'यूरिन टेस्ट' },
+  'catalog.cat.microbiology': { en: 'Microbiology', hi: 'माइक्रोबायोलॉजी' },
+  'catalog.cat.special':      { en: 'Special Tests', hi: 'विशेष टेस्ट' },
+  'catalog.tests.header':     { en: 'Tests in {{category}}', hi: '{{category}} के टेस्ट' },
+  'catalog.tests.body':       { en: 'Pick a test for details.', hi: 'विवरण के लिए टेस्ट चुनें।' },
+  'catalog.tests.button':     { en: 'View', hi: 'देखें' },
   'catalog.test.detail':      {
-    en: ' {{name}}\nPrice: {{price}}\nSample: {{sample}}\nFasting: {{fasting}}\nReport in: {{tat}}\n\n{{notes}}',
-    hi: ' {{name}}\n: {{price}}\n: {{sample}}\n : {{fasting}}\n: {{tat}}\n\n{{notes}}',
+    en: '{{name}}\nPrice: ₹{{price}}\nSample: {{sample}}\nFasting: {{fasting}}\nReport in: {{tat}}\n\n{{notes}}',
+    hi: '{{name}}\nमूल्य: ₹{{price}}\nसैंपल: {{sample}}\nखाली पेट: {{fasting}}\nरिपोर्ट: {{tat}}\n\n{{notes}}',
   },
-  'catalog.book_this':        { en: 'Book This Test', hi: '   ' },
-  'catalog.back':             { en: 'Back to Menu', hi: '  ' },
-  'catalog.empty':            { en: 'No tests found.', hi: '   ' },
+  'catalog.book_this':        { en: 'Book This Test', hi: 'यह टेस्ट बुक करें' },
+  'catalog.back':             { en: 'Back to Menu', hi: 'मेनू पर वापस' },
+  'catalog.empty':            { en: 'No tests found.', hi: 'कोई टेस्ट नहीं मिला।' },
 
   'info.body':           {
-    en: ' Unique Janch Ghar (formerly Hi-tech Patho Lab Rajgir)\n\n Hours\nMon-Sat 7AM-9PM\nSun 7AM-12PM\n\n Phone\n+91 9798586981\n\n Address\nNear RX India Pharma, opp. Sub-Divisional Hospital,\nRajgir, Nalanda, Bihar 803116\n\nReply MENU for the main menu.',
-    hi: '    ( -   )\n\n \n-:  7 -  9\n:  8 -  12\n\n \n+91 9798586981\n\n \nRX India Pharma  , -   ,\n, ,  803116\n\nMENU ',
+    en: 'Unique Janch Ghar (formerly Hi-tech Patho Lab Rajgir)\n\n🕒 Hours\nMon–Sat 7AM–9PM\nSun 7AM–12PM\n\n📞 Phone\n+91 9798586981\n\n📍 Address\nNear RX India Pharma, opp. Sub-Divisional Hospital,\nRajgir, Nalanda, Bihar 803116\n\nReply MENU for the main menu.',
+    hi: 'यूनिक जाँच घर (पहले हाई-टेक पैथो लैब राजगीर)\n\n🕒 समय\nसोम–शनि 7AM–9PM\nरवि 7AM–12PM\n\n📞 फ़ोन\n+91 9798586981\n\n📍 पता\nRX India Pharma के पास, सब-डिविज़नल हॉस्पिटल के सामने,\nराजगीर, नालंदा, बिहार 803116\n\nमुख्य मेनू के लिए MENU भेजें।',
   },
 
-  'handoff.prompt':      { en: 'Our staff will call you back. When works best?', hi: '     ?' },
-  'handoff.now':         { en: 'Now', hi: '' },
-  'handoff.2h':          { en: 'Within 2 hours', hi: '2  ' },
-  'handoff.tomorrow':    { en: 'Tomorrow morning', hi: ' ' },
-  'handoff.success':     { en: ' Got it. We will call you {{when}}.', hi: '   {{when}}  ' },
+  'handoff.prompt':      { en: 'Our staff will call you back. When works best?', hi: 'हमारी टीम कॉल करेगी। कब सही रहेगा?' },
+  'handoff.now':         { en: 'Now', hi: 'अभी' },
+  'handoff.2h':          { en: 'Within 2 hours', hi: '2 घंटे में' },
+  'handoff.tomorrow':    { en: 'Tomorrow morning', hi: 'कल सुबह' },
+  'handoff.success':     { en: 'Got it. We will call you {{when}}.', hi: 'ठीक है। हम {{when}} कॉल करेंगे।' },
 
-  'common.menu_hint':    { en: 'Reply MENU to see options.', hi: 'MENU ' },
-  'common.unknown':      { en: 'I did not catch that. Reply MENU.', hi: '   MENU ' },
-  'common.rate_limited': { en: 'You are sending too quickly.', hi: '    ' },
-  'common.outside_window': { en: 'Send any message to reopen.', hi: '       ' },
-  'common.cancelled':    { en: 'Cancelled. Reply MENU.', hi: ' MENU ' },
+  'common.menu_hint':    { en: 'Reply MENU to see options.', hi: 'विकल्प देखने के लिए MENU भेजें।' },
+  'common.unknown':      { en: 'I did not catch that. Reply MENU.', hi: 'समझ नहीं पाया। MENU भेजें।' },
+  'common.rate_limited': { en: 'You are sending too quickly.', hi: 'आप बहुत तेज़ी से भेज रहे हैं।' },
+  'common.outside_window': { en: 'Send any message to reopen.', hi: 'फिर से शुरू करने के लिए कोई संदेश भेजें।' },
+  'common.cancelled':    { en: 'Cancelled. Reply MENU.', hi: 'रद्द। MENU भेजें।' },
 };
 
 module.exports = {

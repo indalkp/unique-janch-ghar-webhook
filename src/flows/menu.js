@@ -1,15 +1,20 @@
 /**
- * src/flows/menu.js — Top-level menu list message.
+ * src/flows/menu.js — Top-level welcome + menu (v2.2).
  *
- * The 5 rows match the 5 customer flows: book / status / catalog / info / handoff.
- * The router treats menu as the "idle" landing — any of these row IDs sets the
- * flow accordingly and dispatches to the matching flow handler with a synthetic
- * "entry" event.
+ * v2.2: send TWO messages back-to-back so the former-name line lands at the
+ * top of the chat. The List-message header is capped at 60 chars by Meta and
+ * was truncating the rebrand line, so we lift the welcome text into a plain
+ * text message and use a short header on the List for the menu rows.
+ *
+ *   1. sendText(welcome.text)         — full bilingual greeting + former name
+ *   2. sendInteractiveList(menu.title.short, menu.body, ...) — the 5 rows
+ *
+ * Each is awaited; both are logged via actions.metaPost.
  */
 
 'use strict';
 
-const { sendInteractiveList } = require('../actions');
+const { sendText, sendInteractiveList } = require('../actions');
 const { setState } = require('../state');
 const { t } = require('../lang');
 
@@ -21,6 +26,10 @@ const { t } = require('../lang');
  * @param {'hi'|'en'} lang
  */
 async function showMenu(wa_id, lang) {
+  // 1) Plain text greeting (no length cap) — keeps the former-name line visible.
+  await sendText(wa_id, t('welcome.text', lang));
+
+  // 2) List message with a short header so the title fits within 60 chars.
   const sections = [
     {
       title: t('menu.section.title', lang),
@@ -36,8 +45,8 @@ async function showMenu(wa_id, lang) {
 
   await sendInteractiveList(
     wa_id,
-    t('welcome.title', lang),
-    t('welcome.body', lang),
+    t('menu.title.short', lang),
+    t('menu.body', lang),
     t('menu.button', lang),
     sections,
   );

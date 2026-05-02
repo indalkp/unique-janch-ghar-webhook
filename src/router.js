@@ -1,5 +1,5 @@
 /**
- * src/router.js — Inbound webhook event router (v2).
+ * src/router.js — Inbound webhook event router (v2.2).
  *
  * v2 rules:
  *   1. Pull state for the wa_id (cached 30 s).
@@ -10,10 +10,10 @@
  *   5. Else dispatch to the current flow's handler. Each flow handles its own
  *      step transitions and outbound messages.
  *   6. Run logInbound + outbound + setState in parallel via Promise.allSettled.
- *      logOutbound is currently best-effort and is NOT called from the router
- *      — flows send via actions.metaPost which already logs to Cloud Logging.
- *      (Switch to per-message logOutbound by wrapping send helpers if you want
- *      Sheet rows for every outbound; left unwired to keep API call counts low.)
+ *
+ * v2.2: pass the full inbound msg as the 4th arg to handler.handle() so flows
+ * can inspect msg.type === 'location' (lat/lng/name/address) without going
+ * through extractText. extractText still returns "[location]" for logging.
  *
  * Cloud Functions Gen 2 freezes the instance the moment res.send() flushes,
  * so EVERY async call must be awaited (or pushed into Promise.allSettled)
@@ -22,10 +22,12 @@
 
 'use strict';
 
-const { logInbound, logStatus, upsertCustomer } = require('./sheets');
+const { logInbound, logStatus, upsertCustomer, upsertStaffActive } = require('./sheets');
 const { getState, setState, isRateLimited, recordRateLimit } = require('./state');
 const { detectLang, t } = require('./lang');
 const { sendText, markRead } = require('./actions');
+const { handleWaButton } = require('./actions-coordinate');
+const { maybeRefreshStaffActive } = require('./wa-alerts');
 const { config } = require('./config');
 const { log } = require('./logger');
 
@@ -86,6 +88,10 @@ function extractText(msg) {
       if (i.type === 'button_reply') return i.button_reply?.id || i.button_reply?.title || '';
       return '';
     }
+    case 'location':
+      // Return a marker so logging/upsert sees it; the flow reads msg.location
+      // directly via the 4th arg passed to handle().
+      return '[location]';
     case 'image':
     case 'audio':
     case 'video':
@@ -102,13 +108,8 @@ function extractText(msg) {
  * 24h of the customer's last inbound. We track last_inbound on the Customers
  * tab via upsertCustomer() — for now, any inbound resets the clock so it's
  * always "in window" by the time we reach handleMessage.
- *
- * Kept as a placeholder for future tightening — see brief: "Outside window →
- * reply only with a static 'Send any message to wake up' plus log to ConvoState."
  */
 function isWithin24h() {
-  // Trivially true: receiving an inbound IS the customer talking, which
-  // re-opens the window. We keep the function so the routing path is explicit.
   return true;
 }
 
@@ -125,8 +126,6 @@ async function handleMessage(msg, contact) {
   // ----- Rate limiting -------------------------------------------------------
   if (isRateLimited(wa_id)) {
     log.warn('router.rate_limited', { wa_id });
-    // Do not even reply — we only want to *not* pile more sends on a spammy
-    // sender. Still log inbound for audit.
     tasks.push(logInbound({
       timestamp: new Date().toISOString(),
       wa_id, name, type: msg.type, text,
@@ -146,8 +145,31 @@ async function handleMessage(msg, contact) {
   tasks.push(upsertCustomer(wa_id, { name, lastMessage: text }));
   tasks.push(markRead(msg.id));
 
+  // v2.2: refresh staff active timestamp if sender is in STAFF_WA list.
+  // This keeps the 24h alert window open without staff thinking about it.
+  tasks.push(maybeRefreshStaffActive(wa_id));
+
+  // v2.2: cross-channel action buttons. WhatsApp Reply Button ids carry the
+  // booking id like `act_confirm_UJG-...`. Short-circuit before flow dispatch
+  // so any in-flight conversation isn't disturbed.
+  if (text && /^act_(confirm|cancel|collected|map)_/.test(text)) {
+    tasks.push(handleWaButton(wa_id, text));
+    await Promise.allSettled(tasks);
+    return;
+  }
+
+  // v2.2: 'subscribe' keyword opts a wa_id into staff alerts (sets last_active_at).
+  if (text && text.trim().toLowerCase() === 'subscribe') {
+    tasks.push((async () => {
+      await upsertStaffActive(wa_id, new Date().toISOString(), name || '');
+      await sendText(wa_id, '✅ Subscribed to UJG staff alerts. You will receive a WhatsApp message for each new booking. Reply "stop" to unsubscribe.');
+    })());
+    await Promise.allSettled(tasks);
+    return;
+  }
+
   // ----- After-hours short-circuit ------------------------------------------
-  if (false && isAfterHours()) { // DISABLED: bot serves 24/7; staff fulfills during business hours
+  if (false && isAfterHours()) { // DISABLED: bot serves 24/7
     tasks.push(sendText(wa_id, t('common.outside_window', lang)));
     await Promise.allSettled(tasks);
     return;
@@ -169,10 +191,9 @@ async function handleMessage(msg, contact) {
 
   // ----- Routing decision ---------------------------------------------------
   // 1) Explicit menu word → reset.
-  // 2) Idle and the inbound is a menu row id (book/status/catalog/info/handoff)
-  //    → enter that flow.
+  // 2) Idle and the inbound is a menu row id → enter that flow.
   // 3) Idle otherwise (or unknown flow) → show menu.
-  // 4) In-flow → dispatch to the flow's handle() with the input.
+  // 4) In-flow → dispatch to the flow's handle() with input + msg.
   try {
     if (isMenuTrigger) {
       tasks.push(showMenu(wa_id, lang));
@@ -186,11 +207,11 @@ async function handleMessage(msg, contact) {
     } else {
       const handler = FLOW_HANDLERS[state.flow];
       if (!handler) {
-        // Unknown flow — recover by resetting to menu.
         log.warn('router.unknown_flow', { wa_id, flow: state.flow });
         tasks.push(showMenu(wa_id, lang));
       } else {
-        tasks.push(handler.handle(wa_id, text, state));
+        // v2.2: pass the full msg so handlers can read msg.location etc.
+        tasks.push(handler.handle(wa_id, text, state, msg));
       }
     }
   } catch (err) {
@@ -199,6 +220,7 @@ async function handleMessage(msg, contact) {
 
   await Promise.allSettled(tasks);
 }
+
 
 /**
  * Status (delivery/read) callback handler — unchanged from v1.

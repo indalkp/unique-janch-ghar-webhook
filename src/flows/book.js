@@ -1,5 +1,6 @@
 /**
- * src/flows/book.js  "Book Test" flow with multi-test cart (v2.1).
+ * src/flows/book.js — "Book Test" flow with multi-test cart + sample-pickup
+ * location capture (v2.2).
  *
  * Step machine:
  *   entry                     buttons [Common tests, Doctor referred, Type test name]
@@ -9,18 +10,27 @@
  *   pick_date                 buttons [Today, Tomorrow, Pick a date]
  *   custom_date               free-text DD/MM
  *   pick_slot                 buttons [Morning 7-10, Afternoon 10-12]
+ *   awaiting_location         buttons [Send Location, Type Address, Visit Lab]   (v2.2)
+ *   awaiting_address_text     free-text — full pickup address                     (v2.2)
  *   confirm                   buttons [Confirm, Cancel]
- *   done                      write ONE Bookings row (csv tests + total_price)
+ *   done                      write ONE Bookings row (csv tests + total + addr)
+ *
+ * Inbound location messages: WhatsApp delivers msg.type === 'location' with
+ * { latitude, longitude, name?, address? }. Router passes the full msg as the
+ * 4th arg to handle() so this flow can read it without parsing the text body.
  *
  * State context shape:
- *   { lang, name, cart: [{name, price}], date, slot }
+ *   { lang, name, cart: [{name, price}], date, slot,
+ *     pickup_address?, maps_link? }
  */
 
 'use strict';
 
 const { sendText, sendInteractiveList, sendInteractiveButtons } = require('../actions');
 const { setState, clearState } = require('../state');
-const { appendRow } = require('../sheets');
+const { appendBooking } = require('../sheets');
+const { sendBookingEmail } = require('../email');
+const { sendStaffAlerts } = require('../wa-alerts');
 const { t } = require('../lang');
 
 // Top-of-list popular tests with INR prices.
@@ -131,6 +141,15 @@ async function promptSlot(wa_id, lang) {
   ]);
 }
 
+// v2.2 — sample-pickup location prompt with 3 buttons.
+async function promptLocation(wa_id, lang) {
+  await sendInteractiveButtons(wa_id, t('book.location.prompt', lang), [
+    { id: 'loc_send',  title: t('book.location.btn_send',  lang) },
+    { id: 'loc_type',  title: t('book.location.btn_type',  lang) },
+    { id: 'loc_visit', title: t('book.location.btn_visit', lang) },
+  ]);
+}
+
 async function promptConfirm(wa_id, lang, ctx) {
   const total = cartTotal(ctx.cart);
   const body = t('book.confirm.body', lang, {
@@ -138,6 +157,7 @@ async function promptConfirm(wa_id, lang, ctx) {
     total: total,
     date: ctx.date || '',
     slot: ctx.slot || '',
+    address: ctx.pickup_address || '—',
   });
   await sendInteractiveButtons(wa_id, body, [
     { id: 'confirm_yes', title: t('book.confirm.yes', lang) },
@@ -168,7 +188,13 @@ async function start(wa_id, lang, seed = {}) {
 
 // --- Main handler ---------------------------------------------------------
 
-async function handle(wa_id, input, state) {
+/**
+ * @param {string} wa_id
+ * @param {string} input  — extracted text/button-id
+ * @param {object} state  — { flow, step, context }
+ * @param {object} [msg]  — full inbound msg (for type==='location' etc.)
+ */
+async function handle(wa_id, input, state, msg) {
   const lang = state.context.lang || 'en';
   const ctx = Object.assign({}, state.context);
   if (!Array.isArray(ctx.cart)) ctx.cart = [];
@@ -260,6 +286,63 @@ async function handle(wa_id, input, state) {
       if (norm === 'slot_morning') ctx.slot = t('book.slot.morning', lang);
       else if (norm === 'slot_afternoon') ctx.slot = t('book.slot.afternoon', lang);
       else ctx.slot = input;
+      // v2.2: ask for sample-pickup location BEFORE confirm.
+      await promptLocation(wa_id, lang);
+      await setState(wa_id, 'book', 'awaiting_location', ctx);
+      return;
+    }
+
+    case 'awaiting_location': {
+      // Path A continuation: live location attachment arrives.
+      if (msg && msg.type === 'location' && msg.location) {
+        const loc = msg.location;
+        const lat = Number(loc.latitude);
+        const lng = Number(loc.longitude);
+        const label = (loc.name && String(loc.name).trim())
+          || (loc.address && String(loc.address).trim())
+          || ('Live location: ' + lat.toFixed(4) + ',' + lng.toFixed(4));
+        ctx.pickup_address = label;
+        ctx.maps_link = 'https://maps.google.com/?q=' + lat + ',' + lng;
+        await sendText(wa_id, t('book.location.got_share', lang, { address: label }));
+        await promptConfirm(wa_id, lang, ctx);
+        await setState(wa_id, 'book', 'confirm', ctx);
+        return;
+      }
+
+      if (norm === 'loc_send') {
+        // Stay in awaiting_location — listen for inbound location-type message.
+        await sendText(wa_id, t('book.location.send_instruction', lang));
+        await setState(wa_id, 'book', 'awaiting_location', ctx);
+        return;
+      }
+      if (norm === 'loc_type') {
+        await sendText(wa_id, t('book.location.text_prompt', lang));
+        await setState(wa_id, 'book', 'awaiting_address_text', ctx);
+        return;
+      }
+      if (norm === 'loc_visit') {
+        ctx.pickup_address = 'self-visit';
+        ctx.maps_link = '';
+        await sendText(wa_id, t('book.location.visit_lab', lang));
+        await promptConfirm(wa_id, lang, ctx);
+        await setState(wa_id, 'book', 'confirm', ctx);
+        return;
+      }
+      // Unrecognized — re-prompt.
+      await promptLocation(wa_id, lang);
+      return;
+    }
+
+    case 'awaiting_address_text': {
+      // Path B: free-text address. Save and move on.
+      const text = (input || '').trim();
+      if (!text) {
+        await sendText(wa_id, t('book.location.text_prompt', lang));
+        return;
+      }
+      ctx.pickup_address = text;
+      ctx.maps_link = '';
+      await sendText(wa_id, t('book.location.got_text', lang, { address: text }));
       await promptConfirm(wa_id, lang, ctx);
       await setState(wa_id, 'book', 'confirm', ctx);
       return;
@@ -269,7 +352,6 @@ async function handle(wa_id, input, state) {
       // Defensive log so we can see what the button actually delivers.
       console.log(JSON.stringify({ event: 'book.confirm.input', wa_id: wa_id, buttonId: norm, raw: input }));
       // Cancel ONLY when the cancel button id arrives, or when the user types 'cancel'.
-      // The previous `norm.includes('')` check was always true and broke Confirm.
       if (norm === 'confirm_no' || norm.startsWith('cancel')) {
         await sendText(wa_id, t('book.cancelled', lang));
         await clearState(wa_id);
@@ -278,25 +360,44 @@ async function handle(wa_id, input, state) {
       const id = newBookingId();
       const tests = cartNamesCsv(ctx.cart);
       const total = cartTotal(ctx.cart);
-      const row = [
-        id,
-        new Date().toISOString(),
-        wa_id,
-        ctx.name || '',
-        tests,
-        ctx.date || '',
-        ctx.slot || '',
-        'PENDING',
-        '',
-        total,
-      ];
-      await appendRow('Bookings', row);
+      await appendBooking({
+        booking_id: id,
+        timestamp: new Date().toISOString(),
+        wa_id: wa_id,
+        customer_name: ctx.name || '',
+        tests: tests,
+        date: ctx.date || '',
+        slot: ctx.slot || '',
+        status: 'PENDING',
+        notes: '',
+        total: total,
+        pickup_address: ctx.pickup_address || '',
+        maps_link: ctx.maps_link || '',
+      });
+      // v2.2 — fire-and-forget Resend notification. Logs success/failure but
+      // never blocks the customer reply on email failure.
+      const bookingPayload = {
+        booking_id: id,
+        customer_name: ctx.name || '',
+        wa_id: wa_id,
+        test_summary: tests,
+        total_price: total,
+        date: ctx.date || '',
+        slot: ctx.slot || '',
+        pickup_address: ctx.pickup_address || '',
+        maps_link: ctx.maps_link || '',
+        payment_method: '',
+      };
+      // Fire-and-forget Resend email + WhatsApp staff alerts. Don't block reply.
+      sendBookingEmail(bookingPayload).catch((e) => console.error('email.threw', e && e.message));
+      sendStaffAlerts(bookingPayload).catch((e) => console.error('wa.alerts.threw', e && e.message));
       await sendText(wa_id, t('book.success', lang, {
         id: id,
         items: cartLines(ctx.cart),
         total: total,
         date: ctx.date,
         slot: ctx.slot,
+        address: ctx.pickup_address || '—',
       }));
       await clearState(wa_id);
       return;
