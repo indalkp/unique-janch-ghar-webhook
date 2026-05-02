@@ -26,3 +26,4 @@ coverage/
 
 # gcloud
 .gcloud/
+src/*.bak
