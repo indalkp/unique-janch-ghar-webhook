@@ -1,5 +1,5 @@
 /**
- * src/router.js — Inbound webhook event router (v2.3).
+ * src/router.js — Inbound webhook event router (v3.0).
  *
  * v2 rules:
  *   1. Pull state for the wa_id (cached 30 s).
@@ -12,15 +12,26 @@
  *   6. Run logInbound + outbound + setState in parallel via Promise.allSettled.
  *
  * v2.2: pass the full inbound msg as the 4th arg to handler.handle() so flows
- * can inspect msg.type === 'location' (lat/lng/name/address) without going
- * through extractText. extractText still returns "[location]" for logging.
+ * can inspect msg.type === 'location'/'image' etc. without going through
+ * extractText. extractText still returns "[location]"/"[image]" for logging.
  *
  * v2.3: multi-tenant routing guard. The Indalkp WABA hosts multiple phone
  * numbers (UJG, indalkp.com, ...). This bot ONLY serves UJG's phone_number_id.
- * Inbound for any other PNID gets a polite cross-tenant redirect (sent FROM
- * the actual recipient PNID so the user sees the reply on the right line)
- * and skips UJG flow dispatch. Status callbacks for foreign PNIDs are
- * silently ignored — they belong to messages we never sent.
+ *
+ * v3.0 — Lab-aware booking + UPI payment routing notes:
+ *   The v3.0 conversational button IDs all flow through normal flow dispatch
+ *   (state-driven). Router does NOT short-circuit them; the book.js step
+ *   machine owns the logic. The IDs:
+ *     - lab_thyrocare           — pick_lab step → lab=THYROCARE
+ *     - lab_lal                 — pick_lab step → lab=LALPATHLABS
+ *     - paid_upi                — awaiting_payment_choice → UPI_CLAIMED
+ *     - pay_at_collection       — awaiting_payment_choice → CASH_AT_COLLECTION
+ *     - inbound msg.type==='image' during awaiting_payment_choice → screenshot
+ *       saved as payment_ref + treated as UPI_CLAIMED
+ *
+ *   Router DOES add a defensive log line for any of these IDs so we can spot
+ *   state-drift (button clicked while flow is somewhere else). The handling
+ *   itself stays inside book.js so cart context isn't fragmented.
  *
  * Cloud Functions Gen 2 freezes the instance the moment res.send() flushes,
  * so EVERY async call must be awaited (or pushed into Promise.allSettled)
@@ -46,21 +57,18 @@ const infoFlow    = require('./flows/info');
 const handoffFlow = require('./flows/handoff');
 
 // ---- v2.3: Multi-tenant routing constants ---------------------------------
-// The ONLY phone_number_id this bot serves. Anything else on the same WABA
-// (e.g. the indalkp.com line) gets the cross-tenant redirect below. Hardcoded
-// (not env) because the value is a permanent property of the UJG number.
 const UJG_PHONE_NUMBER_ID = '1155334040987245';
 
-// Bilingual redirect text. Sent FROM the foreign PNID so the user gets it on
-// the line they actually messaged.
 const CROSS_TENANT_REDIRECT_TEXT =
   'This is a separate business line. For lab tests and bookings, please message *+91 97985 86981* — Unique Janch Ghar.\n\n' +
   'यह एक अलग बिज़नेस लाइन है। लैब टेस्ट और बुकिंग के लिए कृपया *+91 97985 86981* पर मैसेज करें — Unique Janch Ghar।';
 
-// Words that always reset the conversation back to the main menu.
 const MENU_TRIGGERS = ['menu', 'मेनू', 'start', 'शुरू', 'hi', 'hello', 'namaste', 'namaskar', 'नमस्ते', 'नमस्कार', 'help', 'मदद'];
 
-// Maps a top-level menu row id → flow start fn.
+// v3.0 — IDs we recognise as in-flow conversational buttons. Listed here only
+// for diagnostic logging in the router; actual handling stays in book.js.
+const V3_BOOK_BUTTON_PREFIXES = ['lab_thyrocare', 'lab_lal', 'paid_upi', 'pay_at_collection', 'pay_now_upi'];
+
 const FLOW_STARTERS = {
   book:    (wa_id, lang, name) => bookFlow.start(wa_id, lang, { name }),
   status:  (wa_id, lang)       => statusFlow.start(wa_id, lang),
@@ -69,7 +77,6 @@ const FLOW_STARTERS = {
   handoff: (wa_id, lang, name) => handoffFlow.start(wa_id, lang, { name }),
 };
 
-// Maps a flow key → handler module (for in-flow dispatch).
 const FLOW_HANDLERS = {
   book:    bookFlow,
   status:  statusFlow,
@@ -108,8 +115,6 @@ function extractText(msg) {
       return '';
     }
     case 'location':
-      // Return a marker so logging/upsert sees it; the flow reads msg.location
-      // directly via the 4th arg passed to handle().
       return '[location]';
     case 'image':
     case 'audio':
@@ -122,26 +127,17 @@ function extractText(msg) {
   }
 }
 
-/**
- * The 24-hour service window check. Meta only allows free-form messages within
- * 24h of the customer's last inbound. We track last_inbound on the Customers
- * tab via upsertCustomer() — for now, any inbound resets the clock so it's
- * always "in window" by the time we reach handleMessage.
- */
 function isWithin24h() {
   return true;
 }
 
-/**
- * v2.3: Send a free-form text message FROM a specific phone_number_id (NOT
- * the env-configured default in actions.js). Used by the cross-tenant
- * redirect path where the recipient PNID is a sibling number on the same
- * WABA, so the reply needs to come from THAT line. The META_ACCESS_TOKEN
- * has access to all PNIDs registered under the WABA, so the same token works.
- *
- * Failures are logged but never thrown — a redirect bouncing should never
- * crash the webhook.
- */
+/** v3.0 helper — true if input matches a known book-flow conversational button. */
+function isV3BookButton(text) {
+  if (!text) return false;
+  const norm = String(text).trim().toLowerCase();
+  return V3_BOOK_BUTTON_PREFIXES.some((p) => norm === p || norm.startsWith(p + '_'));
+}
+
 async function sendTextFromPNID(senderPnid, to, body) {
   const url = `https://graph.facebook.com/${config.GRAPH_API_VERSION}/${senderPnid}/messages`;
   try {
@@ -205,20 +201,15 @@ async function handleMessage(msg, contact) {
   tasks.push(upsertCustomer(wa_id, { name, lastMessage: text }));
   tasks.push(markRead(msg.id));
 
-  // v2.2: refresh staff active timestamp if sender is in STAFF_WA list.
-  // This keeps the 24h alert window open without staff thinking about it.
   tasks.push(maybeRefreshStaffActive(wa_id));
 
-  // v2.2: cross-channel action buttons. WhatsApp Reply Button ids carry the
-  // booking id like `act_confirm_UJG-...`. Short-circuit before flow dispatch
-  // so any in-flight conversation isn't disturbed.
+  // v2.2: cross-channel action buttons (booking-id-bound, e.g. act_confirm_UJG-...).
   if (text && /^act_(confirm|cancel|collected|map)_/.test(text)) {
     tasks.push(handleWaButton(wa_id, text));
     await Promise.allSettled(tasks);
     return;
   }
 
-  // v2.2: 'subscribe' keyword opts a wa_id into staff alerts (sets last_active_at).
   if (text && text.trim().toLowerCase() === 'subscribe') {
     tasks.push((async () => {
       await upsertStaffActive(wa_id, new Date().toISOString(), name || '');
@@ -228,15 +219,13 @@ async function handleMessage(msg, contact) {
     return;
   }
 
-  // ----- After-hours short-circuit ------------------------------------------
-  if (false && isAfterHours()) { // DISABLED: bot serves 24/7
+  if (false && isAfterHours()) {
     tasks.push(sendText(wa_id, t('common.outside_window', lang)));
     await Promise.allSettled(tasks);
     return;
   }
 
-  // ----- 24-hour window guard (placeholder for future tightening) -----------
-  if (false && !isWithin24h()) { // DISABLED: inbound is in-window by definition
+  if (false && !isWithin24h()) {
     tasks.push(sendText(wa_id, t('common.outside_window', lang)));
     await Promise.allSettled(tasks);
     return;
@@ -244,16 +233,20 @@ async function handleMessage(msg, contact) {
 
   // ----- Pull state ---------------------------------------------------------
   const state = await getState(wa_id);
-  state.context.lang = lang; // refresh per-message; user might switch language
+  state.context.lang = lang;
 
   const norm = (text || '').trim().toLowerCase();
   const isMenuTrigger = MENU_TRIGGERS.some((w) => norm === w || norm.startsWith(w + ' '));
 
+  // v3.0 — diagnostic log for in-flow buttons. Helps us spot state drift in
+  // production without changing behaviour.
+  if (isV3BookButton(text) || (msg.type === 'image' && state.flow === 'book' && /payment/.test(state.step || ''))) {
+    log.info('router.v3.book_button_observed', {
+      wa_id, button: text, state_flow: state.flow, state_step: state.step, msg_type: msg.type,
+    });
+  }
+
   // ----- Routing decision ---------------------------------------------------
-  // 1) Explicit menu word → reset.
-  // 2) Idle and the inbound is a menu row id → enter that flow.
-  // 3) Idle otherwise (or unknown flow) → show menu.
-  // 4) In-flow → dispatch to the flow's handle() with input + msg.
   try {
     if (isMenuTrigger) {
       tasks.push(showMenu(wa_id, lang));
@@ -261,6 +254,12 @@ async function handleMessage(msg, contact) {
       const starter = FLOW_STARTERS[norm];
       if (starter) {
         tasks.push(starter(wa_id, lang, name));
+      } else if (isV3BookButton(text)) {
+        // v3.0 — payment button arrived without active flow (state lost).
+        // Send a short note so the customer knows what happened. Recovery
+        // requires staff to look up the booking manually for now.
+        log.warn('router.v3.payment_button_no_state', { wa_id, button: text });
+        tasks.push(sendText(wa_id, t('common.unknown', lang)));
       } else {
         tasks.push(showMenu(wa_id, lang));
       }
@@ -270,7 +269,6 @@ async function handleMessage(msg, contact) {
         log.warn('router.unknown_flow', { wa_id, flow: state.flow });
         tasks.push(showMenu(wa_id, lang));
       } else {
-        // v2.2: pass the full msg so handlers can read msg.location etc.
         tasks.push(handler.handle(wa_id, text, state, msg));
       }
     }
@@ -283,7 +281,7 @@ async function handleMessage(msg, contact) {
 
 
 /**
- * Status (delivery/read) callback handler — unchanged from v1.
+ * Status (delivery/read) callback handler — unchanged.
  */
 async function handleStatus(st) {
   await logStatus({
@@ -298,13 +296,6 @@ async function handleStatus(st) {
 
 /**
  * Top-level webhook event router.
- *
- * v2.3: cross-tenant guard at the change-level. Meta puts the recipient
- * phone_number_id on `change.value.metadata.phone_number_id`. If it isn't
- * UJG's PNID, every message in that change gets a cross-tenant redirect
- * (sent FROM the foreign PNID) and the normal UJG dispatch is skipped.
- * Status callbacks on a foreign PNID are dropped — they belong to messages
- * we didn't send.
  */
 async function routeEvent(body) {
   if (!body || body.object !== 'whatsapp_business_account') {
@@ -318,7 +309,6 @@ async function routeEvent(body) {
       const value = change.value || {};
       const incomingPnid = value.metadata?.phone_number_id;
 
-      // ---- v2.3 cross-tenant guard ---------------------------------------
       if (incomingPnid && incomingPnid !== UJG_PHONE_NUMBER_ID) {
         for (const msg of value.messages || []) {
           log.info('router.cross_tenant', {
@@ -327,14 +317,11 @@ async function routeEvent(body) {
             type: msg.type,
             messageId: msg.id,
           });
-          // Send the bilingual redirect from the actual recipient PNID.
           tasks.push(sendTextFromPNID(incomingPnid, msg.from, CROSS_TENANT_REDIRECT_TEXT));
         }
-        // Drop status callbacks for foreign PNIDs entirely.
         continue;
       }
 
-      // ---- Normal UJG processing -----------------------------------------
       const contacts = value.contacts || [];
       for (let i = 0; i < (value.messages || []).length; i++) {
         const msg = value.messages[i];
@@ -357,8 +344,10 @@ module.exports = {
   extractText,
   isAfterHours,
   isWithin24h,
-  // v2.3: exported for tests
   UJG_PHONE_NUMBER_ID,
   CROSS_TENANT_REDIRECT_TEXT,
   sendTextFromPNID,
+  // v3.0 exports for tests
+  isV3BookButton,
+  V3_BOOK_BUTTON_PREFIXES,
 };

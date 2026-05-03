@@ -1,12 +1,16 @@
 /**
- * src/lang.js — Language detection + i18n strings (v2.2).
+ * src/lang.js — Language detection + i18n strings (v3.0).
  *
- * detectLang(text)  — returns 'hi' if Devanagari range characters appear, else 'en'.
- * t(key, lang, vars) — returns the localized string. Missing keys return the key
- * itself (so we surface gaps instead of crashing).
+ * v3.0 additions (lab-aware pricing + UPI payment):
+ *   - book.pricing.both_labs / .thyrocare_only / .lal_only / .neither
+ *   - book.pick_lab.prompt + btn_thyrocare + btn_lal
+ *   - book.payment.prompt + .upi_text + .btn_paid + .btn_collection
+ *     + .thanks_paid + .collection_confirmed
+ *   - book.success.with_lab — confirmation that includes chosen_lab line
+ *   - book.list.row_desc    — description shown on each row in pick_common
  *
- * v2.2 additions:
- *   - welcome.text / menu.title.short / menu.body — for the new 2-message welcome
+ * v2.2 carryover:
+ *   - welcome.text / menu.title.short / menu.body
  *   - book.location.* — sample-pickup location prompt + handlers
  *   - book.confirm.body / book.success — pickup_address line in summary
  */
@@ -39,12 +43,10 @@ const STRINGS = {
     en: '_(formerly Hi-tech Patho Lab Rajgir)_\n\nHow can we help you today? Pick an option below.',
     hi: '_(पहले हाई-टेक पैथो लैब राजगीर)_\n\nहम आपकी कैसे मदद कर सकते हैं? नीचे से विकल्प चुनें।',
   },
-  // v2.2 — full plain-text welcome that lands at the top of the chat.
   'welcome.text':        {
     en: '🩺 *Welcome to Unique Janch Ghar* / *यूनिक जाँच घर में आपका स्वागत है*\n_(formerly Hi-tech Patho Lab Rajgir)_\n_(पहले हाई-टेक पैथो लैब राजगीर)_\n\nHow can we help you today? / आज हम कैसे मदद कर सकते हैं?',
     hi: '🩺 *यूनिक जाँच घर में आपका स्वागत है* / *Welcome to Unique Janch Ghar*\n_(पहले हाई-टेक पैथो लैब राजगीर)_\n_(formerly Hi-tech Patho Lab Rajgir)_\n\nआज हम कैसे मदद कर सकते हैं? / How can we help you today?',
   },
-  // v2.2 — short header so List title fits within 60 chars.
   'menu.title.short':    { en: '📋 Choose an option', hi: '📋 विकल्प चुनें' },
   'menu.body':           { en: 'Pick a service below.', hi: 'नीचे से सेवा चुनें।' },
   'menu.button':         { en: 'Open Menu', hi: 'मेनू खोलें' },
@@ -68,6 +70,8 @@ const STRINGS = {
   'book.list.header':    { en: 'Common Tests', hi: 'सामान्य टेस्ट' },
   'book.list.body':      { en: 'Pick a test from the list.', hi: 'सूची से एक टेस्ट चुनें।' },
   'book.list.button':    { en: 'View Tests', hi: 'टेस्ट देखें' },
+  // v3.0 — fallback row description when Catalog has no price for this test.
+  'book.list.row_oncall': { en: 'Price on call', hi: 'मूल्य फ़ोन पर' },
   'book.prompt.name':    { en: 'Type the test name (e.g. CBC, LFT, Lipid Profile).', hi: 'टेस्ट का नाम लिखें (जैसे CBC, LFT, लिपिड)।' },
   'book.prompt.date':    { en: 'When would you like to come? Pick a day:', hi: 'कब आना चाहेंगे? दिन चुनें:' },
   'book.date.today':     { en: 'Today', hi: 'आज' },
@@ -78,6 +82,65 @@ const STRINGS = {
   'book.prompt.slot':    { en: 'Pick a time slot:', hi: 'समय चुनें:' },
   'book.slot.morning':   { en: 'Morning 7-10', hi: 'सुबह 7-10' },
   'book.slot.afternoon': { en: 'Afternoon 10-12', hi: 'दोपहर 10-12' },
+
+  // ---- v3.0 — Lab-aware pricing display ----
+  'book.pricing.both_labs': {
+    en: '{{test}}: Thyrocare ₹{{tp}} / Lal PathLabs ₹{{lp}}',
+    hi: '{{test}}: Thyrocare ₹{{tp}} / Lal PathLabs ₹{{lp}}',
+  },
+  'book.pricing.thyrocare_only': {
+    en: '{{test}}: Thyrocare ₹{{tp}} (Lal PathLabs doesn\'t list this)',
+    hi: '{{test}}: Thyrocare ₹{{tp}} (Lal PathLabs में यह टेस्ट नहीं है)',
+  },
+  'book.pricing.lal_only': {
+    en: '{{test}}: Lal PathLabs ₹{{lp}} (Thyrocare doesn\'t list this)',
+    hi: '{{test}}: Lal PathLabs ₹{{lp}} (Thyrocare में यह टेस्ट नहीं है)',
+  },
+  'book.pricing.neither': {
+    en: '{{test}}: Price on call. Reply STAFF for callback.',
+    hi: '{{test}}: मूल्य फ़ोन पर। कॉलबैक के लिए STAFF भेजें।',
+  },
+
+  // ---- v3.0 — Lab picker step ----
+  'book.pick_lab.prompt': {
+    en: 'Which lab? / कौन सी लैब?',
+    hi: 'कौन सी लैब? / Which lab?',
+  },
+  'book.pick_lab.btn_thyrocare': {
+    en: 'Thyrocare ₹{{tp}}',
+    hi: 'Thyrocare ₹{{tp}}',
+  },
+  'book.pick_lab.btn_lal': {
+    en: 'Lal PathLabs ₹{{lp}}',
+    hi: 'Lal PathLabs ₹{{lp}}',
+  },
+
+  // ---- v3.0 — Payment step ----
+  'book.payment.prompt': {
+    en: 'Total ₹{{total}}. Pay now via UPI or at collection? / कुल ₹{{total}}। अभी UPI से भुगतान या सैंपल लेने पर?',
+    hi: 'कुल ₹{{total}}। अभी UPI से भुगतान या सैंपल लेने पर? / Total ₹{{total}}. Pay now via UPI or at collection?',
+  },
+  // The full UPI text body. Includes the deep link, plain VPA, booking ref, and instructions.
+  'book.payment.upi_text': {
+    en: '💳 *Pay ₹{{total}} via UPI*\nBooking: {{id}}\n\nTap to open UPI app:\n{{link}}\n\nOr send to UPI ID: *{{vpa}}*\nName: Unique Janch Ghar\n\nAfter paying, tap *✓ I\'ve Paid* below — or reply with the screenshot. Team verifies in 2 hours.',
+    hi: '💳 *UPI से ₹{{total}} का भुगतान*\nबुकिंग: {{id}}\n\nUPI ऐप खोलने के लिए दबाएँ:\n{{link}}\n\nया UPI ID पर भेजें: *{{vpa}}*\nनाम: Unique Janch Ghar\n\nभुगतान के बाद नीचे *✓ भुगतान हो गया* दबाएँ — या स्क्रीनशॉट भेजें। टीम 2 घंटे में पुष्टि करेगी।',
+  },
+  'book.payment.btn_paid': {
+    en: '✓ I\'ve Paid / भुगतान हो गया',
+    hi: '✓ भुगतान हो गया / I\'ve Paid',
+  },
+  'book.payment.btn_collection': {
+    en: '💵 Pay at Collection / सैंपल पर भुगतान',
+    hi: '💵 सैंपल पर भुगतान / Pay at Collection',
+  },
+  'book.payment.thanks_paid': {
+    en: 'Got it ✓ Team verifies in 2 hours / धन्यवाद ✓ टीम 2 घंटे में पुष्टि करेगी',
+    hi: 'धन्यवाद ✓ टीम 2 घंटे में पुष्टि करेगी / Got it ✓ Team verifies in 2 hours',
+  },
+  'book.payment.collection_confirmed': {
+    en: 'Booked ✓ Pay ₹{{total}} on collection / बुकिंग पुष्टि ✓ सैंपल पर ₹{{total}} दें',
+    hi: 'बुकिंग पुष्टि ✓ सैंपल पर ₹{{total}} दें / Booked ✓ Pay ₹{{total}} on collection',
+  },
 
   // ---- Location step (v2.2) ----
   'book.location.prompt': {
@@ -108,7 +171,7 @@ const STRINGS = {
     hi: '✅ पिकअप पता मिल गया: {{address}}',
   },
 
-  // ---- Confirm + success (v2.2: address line) ----
+  // ---- Confirm + success (v2.2: address line; v3.0: chosen_lab line) ----
   'book.confirm.body':   {
     en: 'Booking summary:\n{{items}}\nTotal: ₹{{total}}\nDate: {{date}}\nSlot: {{slot}}\nPickup: {{address}}',
     hi: 'बुकिंग सारांश:\n{{items}}\nकुल: ₹{{total}}\nतारीख़: {{date}}\nसमय: {{slot}}\nपिकअप: {{address}}',
@@ -118,6 +181,11 @@ const STRINGS = {
   'book.success':        {
     en: '✅ Booking saved\n\nBooking ID: {{id}}\n{{items}}\nTotal: ₹{{total}}\nDate: {{date}}\nSlot: {{slot}}\nPickup: {{address}}\n\nOur team will call you to confirm. Reply MENU to start over.',
     hi: '✅ बुकिंग सेव हो गई\n\nबुकिंग ID: {{id}}\n{{items}}\nकुल: ₹{{total}}\nतारीख़: {{date}}\nसमय: {{slot}}\nपिकअप: {{address}}\n\nहमारी टीम कन्फ़र्म करने के लिए कॉल करेगी। फिर से शुरू करने के लिए MENU भेजें।',
+  },
+  // v3.0 — confirmation that names the chosen lab so the customer sees it.
+  'book.success.with_lab': {
+    en: '✅ Booking saved\n\nBooking ID: {{id}}\n{{items}}\nTotal: ₹{{total}}\nDate: {{date}}\nSlot: {{slot}}\nPickup: {{address}}\nLab: {{chosen_lab}}\n\nNext step: complete payment below.',
+    hi: '✅ बुकिंग सेव हो गई\n\nबुकिंग ID: {{id}}\n{{items}}\nकुल: ₹{{total}}\nतारीख़: {{date}}\nसमय: {{slot}}\nपिकअप: {{address}}\nलैब: {{chosen_lab}}\n\nअगला स्टेप: नीचे भुगतान पूरा करें।',
   },
   'book.cancelled':      { en: 'Booking cancelled. Reply MENU to start over.', hi: 'बुकिंग रद्द। फिर से शुरू करने के लिए MENU भेजें।' },
 
