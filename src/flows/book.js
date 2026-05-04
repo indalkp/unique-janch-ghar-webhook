@@ -1,6 +1,20 @@
 /**
  * src/flows/book.js — "Book Test" flow with multi-test cart, sample-pickup
- * location capture, and lab-aware pricing + UPI payment (v3.0).
+ * location capture, and lab-aware pricing + UPI payment (v3.2.1).
+ *
+ * v3.2.1 hotfix:
+ *   - UPI_PAYEE_NAME corrected to "KUMAR CHANDAN PATEL" — this is the name
+ *     customers actually see in their UPI app (the VPA is bound to a
+ *     personal number-linked account, not the lab name). Putting the lab
+ *     name in `pn` mismatched the on-screen receiver name and confused
+ *     customers into thinking the link was wrong.
+ *   - buildUpiLink() now uses encodeURIComponent so spaces become %20
+ *     instead of "+" (URLSearchParams default). UPI apps parse %20 more
+ *     reliably across PhonePe / GPay / Paytm / BHIM.
+ *   - confirm step now sends a separate "Our staff will call shortly"
+ *     promise text (with tap-to-call number) BETWEEN the booking summary
+ *     and the UPI payment prompt, so the customer sees the human-touch
+ *     reassurance before being asked to pay.
  *
  * v3.0 architectural pivot:
  *   UJG no longer "runs the test". UJG is a *facilitator* — every test in the
@@ -73,8 +87,11 @@ const POPULAR_TESTS = [
 ];
 
 // UPI PSP target — UJG's PhonePe-linked number-bound VPA.
+// v3.2.1: the bound account name on this VPA is "KUMAR CHANDAN PATEL".
+// We MUST send that exact name in the `pn` parameter, otherwise the UPI
+// app's "verify name" step shows a mismatch and customers abandon.
 const UPI_VPA = '9471991032-3@ybl';
-const UPI_PAYEE_NAME = 'Unique Janch Ghar';
+const UPI_PAYEE_NAME = 'KUMAR CHANDAN PATEL';
 
 // ---- Catalog cache --------------------------------------------------------
 
@@ -181,16 +198,23 @@ function chosenLabSummary(cart) {
   return 'MIXED';
 }
 
-/** Build the upi://pay deep link. */
+/**
+ * Build the upi://pay deep link.
+ *
+ * v3.2.1: switched from URLSearchParams (which encodes spaces as "+") to
+ * manual encodeURIComponent so spaces become %20. UPI apps (especially
+ * older PhonePe builds and BHIM) parse %20 more reliably than "+", and
+ * mis-parsing the payee name was causing receiver-name-mismatch warnings.
+ */
 function buildUpiLink(bookingId, total) {
-  const params = new URLSearchParams({
-    pa: UPI_VPA,
-    pn: UPI_PAYEE_NAME,
-    am: String(total),
-    tn: 'UJG-' + bookingId,
-    cu: 'INR',
-  });
-  return 'upi://pay?' + params.toString();
+  const params = [
+    'pa=' + encodeURIComponent(UPI_VPA),
+    'pn=' + encodeURIComponent(UPI_PAYEE_NAME),
+    'am=' + encodeURIComponent(String(total)),
+    'tn=' + encodeURIComponent('UJG-' + bookingId),
+    'cu=INR',
+  ];
+  return 'upi://pay?' + params.join('&');
 }
 
 // ---- Outbound prompt helpers ----------------------------------------------
@@ -631,6 +655,10 @@ async function handle(wa_id, input, state, msg) {
       sendStaffAlerts(bookingPayload).catch((e) => console.error('wa.alerts.threw', e && e.message));
 
       // v3.0 — instead of clearing state, advance to payment choice.
+      // Message order:
+      //   1. Booking summary (with_lab template)
+      //   2. v3.2.1: separate "staff will call shortly" promise + phone
+      //   3. UPI payment prompt (text + buttons)
       await sendText(wa_id, t('book.success.with_lab', lang, {
         id: id,
         items: cartLines(ctx.cart),
@@ -640,6 +668,9 @@ async function handle(wa_id, input, state, msg) {
         address: ctx.pickup_address || '—',
         chosen_lab: chosen_lab,
       }));
+      // v3.2.1: human-touch reassurance before asking for payment. Kept as
+      // a separate text so the phone number renders as tap-to-call.
+      await sendText(wa_id, t('book.staff_call_promise', lang));
       ctx.booking_id = id;
       ctx.total = total;
       await promptPaymentChoice(wa_id, lang, id, total);

@@ -1,5 +1,13 @@
 /**
- * src/lang.js — Language detection + i18n strings (v3.0).
+ * src/lang.js — Language detection + i18n strings (v3.2.1).
+ *
+ * v3.2.1 hotfix:
+ *   - book.payment.upi_text — payee name updated to "KUMAR CHANDAN PATEL"
+ *     (the actual name customers see in their UPI app, since the VPA is
+ *     bound to a personal number-linked account, not the lab name).
+ *   - book.prompt.date — neutral, collection-friendly wording.
+ *   - book.staff_call_promise — NEW separate text message sent after the
+ *     booking summary, includes tap-to-call phone number.
  *
  * v3.0 additions (lab-aware pricing + UPI payment):
  *   - book.pricing.both_labs / .thyrocare_only / .lal_only / .neither
@@ -73,7 +81,9 @@ const STRINGS = {
   // v3.0 — fallback row description when Catalog has no price for this test.
   'book.list.row_oncall': { en: 'Price on call', hi: 'मूल्य फ़ोन पर' },
   'book.prompt.name':    { en: 'Type the test name (e.g. CBC, LFT, Lipid Profile).', hi: 'टेस्ट का नाम लिखें (जैसे CBC, LFT, लिपिड)।' },
-  'book.prompt.date':    { en: 'When would you like to come? Pick a day:', hi: 'कब आना चाहेंगे? दिन चुनें:' },
+  // v3.2.1 — neutral, collection-friendly wording (was "When would you like
+  // to come? Pick a day:" which implied the patient must come to the lab).
+  'book.prompt.date':    { en: 'When should our team collect the sample? Pick a day:', hi: 'कब सैंपल लेना है? दिन चुनें:' },
   'book.date.today':     { en: 'Today', hi: 'आज' },
   'book.date.tomorrow':  { en: 'Tomorrow', hi: 'कल' },
   'book.date.pick':      { en: 'Pick a Date', hi: 'तारीख़ चुनें' },
@@ -120,10 +130,12 @@ const STRINGS = {
     en: 'Total ₹{{total}}. Pay now via UPI or at collection? / कुल ₹{{total}}। अभी UPI से भुगतान या सैंपल लेने पर?',
     hi: 'कुल ₹{{total}}। अभी UPI से भुगतान या सैंपल लेने पर? / Total ₹{{total}}. Pay now via UPI or at collection?',
   },
-  // The full UPI text body. Includes the deep link, plain VPA, booking ref, and instructions.
+  // v3.2.1 — payee name corrected to "KUMAR CHANDAN PATEL" (the actual name
+  // customers see in their UPI app, since the VPA is bound to a personal
+  // account; setting it to the lab name caused customer confusion).
   'book.payment.upi_text': {
-    en: '💳 *Pay ₹{{total}} via UPI*\nBooking: {{id}}\n\nTap to open UPI app:\n{{link}}\n\nOr send to UPI ID: *{{vpa}}*\nName: Unique Janch Ghar\n\nAfter paying, tap *✓ I\'ve Paid* below — or reply with the screenshot. Team verifies in 2 hours.',
-    hi: '💳 *UPI से ₹{{total}} का भुगतान*\nबुकिंग: {{id}}\n\nUPI ऐप खोलने के लिए दबाएँ:\n{{link}}\n\nया UPI ID पर भेजें: *{{vpa}}*\nनाम: Unique Janch Ghar\n\nभुगतान के बाद नीचे *✓ भुगतान हो गया* दबाएँ — या स्क्रीनशॉट भेजें। टीम 2 घंटे में पुष्टि करेगी।',
+    en: '💳 *Pay ₹{{total}} via UPI*\nBooking: {{id}}\n\nTap link to open UPI app:\n{{link}}\n\nOr long-press to copy UPI ID:\n`{{vpa}}`\n\nYou\'ll see recipient as: *KUMAR CHANDAN PATEL*\n\nAfter paying, tap *✓ I\'ve Paid* below or send a screenshot. Team verifies in 2 hours.',
+    hi: '💳 *UPI से ₹{{total}} का भुगतान*\nबुकिंग: {{id}}\n\nUPI ऐप खोलने के लिए दबाएँ:\n{{link}}\n\nUPI ID कॉपी करने के लिए लंबा दबाएँ:\n`{{vpa}}`\n\nआपको receiver दिखेगा: *KUMAR CHANDAN PATEL*\n\nभुगतान के बाद नीचे *✓ भुगतान हो गया* दबाएँ या स्क्रीनशॉट भेजें। टीम 2 घंटे में पुष्टि करेगी।',
   },
   'book.payment.btn_paid': {
     en: '✓ I\'ve Paid / भुगतान हो गया',
@@ -140,6 +152,14 @@ const STRINGS = {
   'book.payment.collection_confirmed': {
     en: 'Booked ✓ Pay ₹{{total}} on collection / बुकिंग पुष्टि ✓ सैंपल पर ₹{{total}} दें',
     hi: 'बुकिंग पुष्टि ✓ सैंपल पर ₹{{total}} दें / Booked ✓ Pay ₹{{total}} on collection',
+  },
+
+  // ---- v3.2.1 — Separate "staff will call" promise sent after the booking
+  // summary and before the payment prompt. Includes tap-to-call number on
+  // its own line (WhatsApp auto-detects and makes it tappable).
+  'book.staff_call_promise': {
+    en: 'Our staff will call you shortly to confirm details.\n\n📞 Need to talk now? Call us:\n+91 97985 86981',
+    hi: 'हमारा स्टाफ़ जल्द कॉल करके पुष्टि करेगा।\n\n📞 अभी बात करनी है? कॉल करें:\n+91 97985 86981',
   },
 
   // ---- Location step (v2.2) ----
