@@ -64,18 +64,17 @@ function getArg(flag) {
 }
 
 const META_ACCESS_TOKEN = getArg('--token') || process.env.META_ACCESS_TOKEN;
-const META_PHONE_NUMBER_ID = getArg('--pnid') || process.env.META_PHONE_NUMBER_ID;
+let META_PHONE_NUMBER_ID = getArg('--pnid') || process.env.META_PHONE_NUMBER_ID || '547745445082509';
 const GRAPH_API_VERSION = getArg('--version') || process.env.GRAPH_API_VERSION || 'v18.0';
+
+// Default to Indal KP line (+91 97245 08082) if legacy UJG number is configured in env
+if (META_PHONE_NUMBER_ID === '1155334040987245' && !getArg('--pnid')) {
+  META_PHONE_NUMBER_ID = '547745445082509';
+}
 
 if (!META_ACCESS_TOKEN) {
   console.error('❌ Missing META_ACCESS_TOKEN.');
   console.error('Provide via .env, .env.yaml, or CLI: node scripts/update-meta-profile.js --token <TOKEN> --pnid <PNID>');
-  process.exit(1);
-}
-
-if (!META_PHONE_NUMBER_ID) {
-  console.error('❌ Missing META_PHONE_NUMBER_ID.');
-  console.error('Provide via .env, .env.yaml, or CLI: node scripts/update-meta-profile.js --pnid <PNID>');
   process.exit(1);
 }
 
@@ -88,7 +87,7 @@ const PROFILE_DATA = {
     'कला और तकनीक का अद्वितीय संगम — चलचित्र निर्माण एवं रचनात्मक स्वचालन।',
   email: 'indalkp@gmail.com',
   websites: ['https://indalkp.com'],
-  vertical: 'ENTERTAINMENT',
+  vertical: 'ENTERTAIN',
 };
 
 async function uploadProfilePicture(pnid, token, version) {
