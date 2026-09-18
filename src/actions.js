@@ -23,8 +23,21 @@
 
 'use strict';
 
+const { AsyncLocalStorage } = require('node:async_hooks');
 const { config } = require('./config');
 const { log } = require('./logger');
+
+const pnidStorage = new AsyncLocalStorage();
+
+/**
+ * Execute an async function within the context of a specific Meta Phone Number ID.
+ * All subsequent actions (sendText, sendInteractiveList, markRead, etc.) will
+ * route outbound messages from this PNID automatically.
+ */
+function withPnid(pnid, fn) {
+  if (!pnid) return fn();
+  return pnidStorage.run({ pnid }, fn);
+}
 
 // Lazy-loaded response payloads — read once on first use, cached after.
 const responsesCache = {};
@@ -49,7 +62,9 @@ function fill(template, vars = {}) {
  * Never throws — callers shouldn't have to wrap every send in try/catch.
  */
 async function metaPost(payload) {
-  const url = `https://graph.facebook.com/${config.GRAPH_API_VERSION}/${config.META_PHONE_NUMBER_ID}/messages`;
+  const store = pnidStorage.getStore();
+  const targetPnid = (store && store.pnid) || config.META_PHONE_NUMBER_ID;
+  const url = `https://graph.facebook.com/${config.GRAPH_API_VERSION}/${targetPnid}/messages`;
   try {
     const res = await fetch(url, {
       method: 'POST',
@@ -63,6 +78,7 @@ async function metaPost(payload) {
     if (!res.ok) {
       log.error('meta.send.failed', {
         status: res.status,
+        targetPnid,
         error: json.error || null,
         type: payload.type,
         to: payload.to,
@@ -70,13 +86,14 @@ async function metaPost(payload) {
       return { ok: false, response: json };
     }
     log.info('meta.send.ok', {
+      targetPnid,
       type: payload.type,
       to: payload.to,
       messageId: json.messages?.[0]?.id || null,
     });
     return { ok: true, response: json };
   } catch (err) {
-    log.error('meta.send.threw', { error: err.message, type: payload.type });
+    log.error('meta.send.threw', { error: err.message, type: payload.type, targetPnid });
     return { ok: false, response: { error: { message: err.message } } };
   }
 }
@@ -184,7 +201,9 @@ async function sendInteractiveButtons(to, bodyText, buttons) {
  * which is reassurance. Free.
  */
 async function markRead(messageId) {
-  const url = `https://graph.facebook.com/${config.GRAPH_API_VERSION}/${config.META_PHONE_NUMBER_ID}/messages`;
+  const store = pnidStorage.getStore();
+  const targetPnid = (store && store.pnid) || config.META_PHONE_NUMBER_ID;
+  const url = `https://graph.facebook.com/${config.GRAPH_API_VERSION}/${targetPnid}/messages`;
   await fetch(url, {
     method: 'POST',
     headers: {
@@ -197,7 +216,7 @@ async function markRead(messageId) {
       message_id: messageId,
     }),
   }).catch((err) => {
-    log.warn('meta.mark_read.failed', { error: err.message, messageId });
+    log.warn('meta.mark_read.failed', { error: err.message, messageId, targetPnid });
   });
 }
 
@@ -217,6 +236,9 @@ module.exports = {
   // v2:
   sendInteractiveList,
   sendInteractiveButtons,
+  // dynamic PNID support:
+  withPnid,
+  pnidStorage,
   // alias the brief asked for:
   send: sendText,
   // exported for tests:

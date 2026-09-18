@@ -43,7 +43,7 @@
 const { logInbound, logStatus, upsertCustomer, upsertStaffActive } = require('./sheets');
 const { getState, setState, isRateLimited, recordRateLimit } = require('./state');
 const { detectLang, t } = require('./lang');
-const { sendText, markRead } = require('./actions');
+const { sendText, markRead, withPnid } = require('./actions');
 const { handleWaButton } = require('./actions-coordinate');
 const { maybeRefreshStaffActive } = require('./wa-alerts');
 const { config } = require('./config');
@@ -296,6 +296,9 @@ async function handleStatus(st) {
 
 /**
  * Top-level webhook event router.
+ *
+ * Directs incoming events from any registered number on the WABA (e.g. +91 97245 08082)
+ * into the Indal KP Studio bot with dynamic PNID routing.
  */
 async function routeEvent(body) {
   if (!body || body.object !== 'whatsapp_business_account') {
@@ -309,27 +312,20 @@ async function routeEvent(body) {
       const value = change.value || {};
       const incomingPnid = value.metadata?.phone_number_id;
 
-      if (incomingPnid && incomingPnid !== UJG_PHONE_NUMBER_ID) {
-        for (const msg of value.messages || []) {
-          log.info('router.cross_tenant', {
-            incoming_pnid: incomingPnid,
-            wa_id: msg.from,
-            type: msg.type,
-            messageId: msg.id,
-          });
-          tasks.push(sendTextFromPNID(incomingPnid, msg.from, CROSS_TENANT_REDIRECT_TEXT));
-        }
-        continue;
-      }
-
       const contacts = value.contacts || [];
       for (let i = 0; i < (value.messages || []).length; i++) {
         const msg = value.messages[i];
         const contact = contacts[i] || contacts[0];
-        tasks.push(handleMessage(msg, contact));
+        log.info('router.incoming_message', {
+          incoming_pnid: incomingPnid,
+          wa_id: msg.from,
+          type: msg.type,
+          messageId: msg.id,
+        });
+        tasks.push(withPnid(incomingPnid, () => handleMessage(msg, contact)));
       }
       for (const st of value.statuses || []) {
-        tasks.push(handleStatus(st));
+        tasks.push(withPnid(incomingPnid, () => handleStatus(st)));
       }
     }
   }

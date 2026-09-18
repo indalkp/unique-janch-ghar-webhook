@@ -1,6 +1,6 @@
 {
   "id": "greeting",
-  "hindi": "नमस्ते {{patientName}} 🙏\nUnique Janch Ghar में आपका स्वागत है। हम आपकी कैसे मदद कर सकते हैं? नीचे दिए गए विकल्पों में से चुनें।",
-  "english": "Hello {{patientName}} 🙏\nWelcome to Unique Janch Ghar. How can we help you today? Please pick from the menu below.",
-  "combined": "नमस्ते {{patientName}} 🙏\nUnique Janch Ghar में आपका स्वागत है।\n\nHello {{patientName}} 🙏\nWelcome to Unique Janch Ghar.\n\nKripya neeche diye gaye menu se chunें / Please pick an option below."
+  "hindi": "नमस्ते 🙏\nIndal KP Studio में आपका स्वागत है।\nCreative Technologist & Film Maker\n\nचलचित्र निर्माण, 2D एनिमेशन और रचनात्मक स्वचालन। हम आपके प्रोजेक्ट में कैसे सहयोग कर सकते हैं? नीचे दिए गए विकल्पों में से चुनें।",
+  "english": "Hello 🙏\nWelcome to Indal KP Studio.\nCreative Technologist & Film Maker\n\nCrafting hybrid 2D animation, cinematic AI commercials, and custom preproduction pipelines. How may we assist your project today? Please pick from the menu below.",
+  "combined": "🎬 *Welcome to Indal KP Studio* / *इन्दल केपी स्टूडियो में आपका स्वागत है*\n_Creative Technologist & Film Maker_\n_(चलचित्र निर्माण एवं रचनात्मक स्वचालन)_\n\nHow can we help bring your visual vision to life? / आज हम कैसे मदद कर सकते हैं?\n\nPlease reply MENU to open options or type your project brief."
 }

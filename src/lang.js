@@ -1,26 +1,9 @@
 /**
- * src/lang.js — Language detection + i18n strings (v3.2.1).
+ * src/lang.js — Language detection + i18n strings for Indal KP Studio.
  *
- * v3.2.1 hotfix:
- *   - book.payment.upi_text — payee name updated to "KUMAR CHANDAN PATEL"
- *     (the actual name customers see in their UPI app, since the VPA is
- *     bound to a personal number-linked account, not the lab name).
- *   - book.prompt.date — neutral, collection-friendly wording.
- *   - book.staff_call_promise — NEW separate text message sent after the
- *     booking summary, includes tap-to-call phone number.
- *
- * v3.0 additions (lab-aware pricing + UPI payment):
- *   - book.pricing.both_labs / .thyrocare_only / .lal_only / .neither
- *   - book.pick_lab.prompt + btn_thyrocare + btn_lal
- *   - book.payment.prompt + .upi_text + .btn_paid + .btn_collection
- *     + .thanks_paid + .collection_confirmed
- *   - book.success.with_lab — confirmation that includes chosen_lab line
- *   - book.list.row_desc    — description shown on each row in pick_common
- *
- * v2.2 carryover:
- *   - welcome.text / menu.title.short / menu.body
- *   - book.location.* — sample-pickup location prompt + handlers
- *   - book.confirm.body / book.success — pickup_address line in summary
+ * Brand: Indal KP Studio (Indal KP | Creative Technologist & Film Maker)
+ * Number: +91 9724508082
+ * Website: https://indalkp.com
  */
 
 'use strict';
@@ -45,240 +28,216 @@ function t(key, lang, vars = {}) {
 }
 
 const STRINGS = {
-  // ---- Welcome / menu (v2.2: split into text + list) ----
-  'welcome.title':       { en: 'Welcome to Unique Janch Ghar', hi: 'Unique Janch Ghar mein aapka swagat hai' },
+  // ---- Welcome / menu ----
+  'welcome.title':       { en: 'Welcome to Indal KP Studio', hi: 'इन्दल केपी स्टूडियो में आपका स्वागत है' },
   'welcome.body':        {
-    en: '_(formerly Hi-tech Patho Lab Rajgir)_\n\nHow can we help you today? Pick an option below.',
-    hi: '_(पहले हाई-टेक पैथो लैब राजगीर)_\n\nहम आपकी कैसे मदद कर सकते हैं? नीचे से विकल्प चुनें।',
+    en: '_Creative Technologist & Film Maker_\n\nHow can we help bring your visual vision to life? Pick a service below.',
+    hi: '_चलचित्र निर्माण एवं रचनात्मक स्वचालन_\n\nहम आपके प्रोजेक्ट में कैसे सहयोग कर सकते हैं? नीचे से सेवा चुनें।',
   },
   'welcome.text':        {
-    en: '🩺 *Welcome to Unique Janch Ghar* / *यूनिक जाँच घर में आपका स्वागत है*\n_(formerly Hi-tech Patho Lab Rajgir)_\n_(पहले हाई-टेक पैथो लैब राजगीर)_\n\nHow can we help you today? / आज हम कैसे मदद कर सकते हैं?',
-    hi: '🩺 *यूनिक जाँच घर में आपका स्वागत है* / *Welcome to Unique Janch Ghar*\n_(पहले हाई-टेक पैथो लैब राजगीर)_\n_(formerly Hi-tech Patho Lab Rajgir)_\n\nआज हम कैसे मदद कर सकते हैं? / How can we help you today?',
+    en: '🎬 *Welcome to Indal KP Studio* / *इन्दल केपी स्टूडियो में आपका स्वागत है*\n_Creative Technologist & Film Maker_\n_(चलचित्र निर्माण एवं रचनात्मक स्वचालन)_\n\nHow can we help bring your visual vision to life? / आज हम आपके प्रोजेक्ट में कैसे सहयोग कर सकते हैं?',
+    hi: '🎬 *इन्दल केपी स्टूडियो में आपका स्वागत है* / *Welcome to Indal KP Studio*\n_चलचित्र निर्माण एवं रचनात्मक स्वचालन_\n_(Creative Technologist & Film Maker)_\n\nआज हम आपके प्रोजेक्ट में कैसे सहयोग कर सकते हैं? / How can we help bring your visual vision to life?',
   },
-  'menu.title.short':    { en: '📋 Choose an option', hi: '📋 विकल्प चुनें' },
-  'menu.body':           { en: 'Pick a service below.', hi: 'नीचे से सेवा चुनें।' },
+  'menu.title.short':    { en: '📋 Select Studio Service', hi: '📋 सेवा चुनें' },
+  'menu.body':           { en: 'Pick a service below to explore packages or book a project.', hi: 'पैकेज देखने या प्रोजेक्ट बुक करने के लिए नीचे से चुनें।' },
   'menu.button':         { en: 'Open Menu', hi: 'मेनू खोलें' },
-  'menu.section.title':  { en: 'Services', hi: 'सेवाएँ' },
-  'menu.book':           { en: 'Book Test', hi: 'टेस्ट बुक करें' },
-  'menu.book.desc':      { en: 'Book a pathology test', hi: 'पैथोलॉजी टेस्ट बुक करें' },
-  'menu.status':         { en: 'Check Report Status', hi: 'रिपोर्ट स्थिति देखें' },
-  'menu.status.desc':    { en: 'Find your booking by name or ID', hi: 'नाम या ID से बुकिंग खोजें' },
-  'menu.catalog':        { en: 'Pricing & Tests', hi: 'मूल्य और टेस्ट' },
-  'menu.catalog.desc':   { en: 'Browse tests by category', hi: 'कैटेगरी से टेस्ट देखें' },
-  'menu.info':           { en: 'Hours & Directions', hi: 'समय और पता' },
-  'menu.info.desc':      { en: 'Lab hours, phone, address', hi: 'लैब का समय, फ़ोन, पता' },
-  'menu.handoff':        { en: 'Talk to Staff', hi: 'स्टाफ़ से बात करें' },
-  'menu.handoff.desc':   { en: 'Request a callback', hi: 'कॉलबैक का अनुरोध' },
+  'menu.section.title':  { en: 'Studio Services', hi: 'स्टूडियो सेवाएँ' },
+  'menu.book':           { en: 'Book Project', hi: 'प्रोजेक्ट बुक करें' },
+  'menu.book.desc':      { en: 'Commercials, Preproduction, Automation', hi: 'विज्ञापन, प्री-प्रोडक्शन, स्वचालन' },
+  'menu.status':         { en: 'Project Status', hi: 'प्रोजेक्ट स्थिति' },
+  'menu.status.desc':    { en: 'Check your production status', hi: 'अपने प्रोजेक्ट की स्थिति देखें' },
+  'menu.catalog':        { en: 'Packages & 50% Rates', hi: 'पैकेज एवं 50% दरें' },
+  'menu.catalog.desc':   { en: 'Browse 50% inaugural launch rates', hi: '50% विशेष छूट के साथ दरें देखें' },
+  'menu.info':           { en: 'Studio & Contact', hi: 'स्टूडियो एवं संपर्क' },
+  'menu.info.desc':      { en: 'Hours, indalkp.com, contact', hi: 'कार्य समय, वेबसाइट, संपर्क' },
+  'menu.handoff':        { en: 'Talk to Indal KP', hi: 'इंडाल केपी से बात करें' },
+  'menu.handoff.desc':   { en: 'Direct creative consultation callback', hi: 'व्यक्तिगत परामर्श का अनुरोध' },
 
   // ---- Book flow ----
-  'book.entry.body':     { en: 'How would you like to choose your test?', hi: 'टेस्ट कैसे चुनना चाहेंगे?' },
-  'book.entry.common':   { en: 'Common Tests', hi: 'सामान्य टेस्ट' },
-  'book.entry.referred': { en: 'Doctor Referred', hi: 'डॉक्टर रेफ़र्ड' },
-  'book.entry.type':     { en: 'Type Test Name', hi: 'टेस्ट का नाम लिखें' },
-  'book.list.header':    { en: 'Common Tests', hi: 'सामान्य टेस्ट' },
-  'book.list.body':      { en: 'Pick a test from the list.', hi: 'सूची से एक टेस्ट चुनें।' },
-  'book.list.button':    { en: 'View Tests', hi: 'टेस्ट देखें' },
-  // v3.0 — fallback row description when Catalog has no price for this test.
-  'book.list.row_oncall': { en: 'Price on call', hi: 'मूल्य फ़ोन पर' },
-  'book.prompt.name':    { en: 'Type the test name (e.g. CBC, LFT, Lipid Profile).', hi: 'टेस्ट का नाम लिखें (जैसे CBC, LFT, लिपिड)।' },
-  // v3.2.1 — neutral, collection-friendly wording (was "When would you like
-  // to come? Pick a day:" which implied the patient must come to the lab).
-  'book.prompt.date':    { en: 'When should our team collect the sample? Pick a day:', hi: 'कब सैंपल लेना है? दिन चुनें:' },
-  'book.date.today':     { en: 'Today', hi: 'आज' },
+  'book.entry.body':     { en: 'Select a creative production package:', hi: 'उत्पादन पैकेज चुनें:' },
+  'book.entry.common':   { en: 'Featured Packages', hi: 'प्रमुख पैकेज' },
+  'book.entry.referred': { en: 'Custom Brief', hi: 'कस्टम ब्रीफ़' },
+  'book.entry.type':     { en: 'Type Package Name', hi: 'पैकेज का नाम लिखें' },
+  'book.list.header':    { en: 'Production Packages', hi: 'उत्पादन पैकेज' },
+  'book.list.body':      { en: 'Pick a package to start your project.', hi: 'सूची से एक पैकेज चुनें।' },
+  'book.list.button':    { en: 'View Packages', hi: 'पैकेज देखें' },
+  'book.list.row_oncall': { en: 'Custom quote', hi: 'कस्टम दर' },
+  'book.prompt.name':    { en: 'Type your project brief or package name (e.g. 60s Commercial, Preproduction, Automation).', hi: 'प्रोजेक्ट या पैकेज का नाम लिखें (जैसे 60s Commercial, Preproduction, Automation)।' },
+  'book.prompt.date':    { en: 'When would you like to kick off the production? Pick a date:', hi: 'प्रोजेक्ट कब शुरू करना चाहेंगे? दिन चुनें:' },
+  'book.date.today':     { en: 'Immediate Kickoff', hi: 'तुरंत शुरुआत' },
   'book.date.tomorrow':  { en: 'Tomorrow', hi: 'कल' },
   'book.date.pick':      { en: 'Pick a Date', hi: 'तारीख़ चुनें' },
-  'book.prompt.date.custom': { en: 'Type the date as DD/MM (e.g. 12/05).', hi: 'तारीख़ DD/MM में लिखें (जैसे 12/05)।' },
-  'book.invalid.date':   { en: 'That date does not look right. Type DD/MM (e.g. 12/05).', hi: 'तारीख़ सही नहीं लगती। DD/MM में लिखें (जैसे 12/05)।' },
-  'book.prompt.slot':    { en: 'Pick a time slot:', hi: 'समय चुनें:' },
-  'book.slot.morning':   { en: 'Morning 7-10', hi: 'सुबह 7-10' },
-  'book.slot.afternoon': { en: 'Afternoon 10-12', hi: 'दोपहर 10-12' },
+  'book.prompt.date.custom': { en: 'Type kickoff date as DD/MM (e.g. 25/09).', hi: 'शुरुआती तारीख़ DD/MM में लिखें (जैसे 25/09)।' },
+  'book.invalid.date':   { en: 'That date does not look right. Type DD/MM (e.g. 25/09).', hi: 'तारीख़ सही नहीं लगती। DD/MM में लिखें (जैसे 25/09)।' },
+  'book.prompt.slot':    { en: 'Pick preferred discussion slot:', hi: 'चर्चा का समय चुनें:' },
+  'book.slot.morning':   { en: 'Morning 10-1', hi: 'सुबह 10-1' },
+  'book.slot.afternoon': { en: 'Afternoon 2-6', hi: 'दोपहर 2-6' },
 
-  // ---- v3.0 — Lab-aware pricing display ----
+  // ---- Pricing display ----
   'book.pricing.both_labs': {
-    en: '{{test}}: Thyrocare ₹{{tp}} / Lal PathLabs ₹{{lp}}',
-    hi: '{{test}}: Thyrocare ₹{{tp}} / Lal PathLabs ₹{{lp}}',
+    en: '{{test}}: ₹{{tp}} (50% Launch Rate)',
+    hi: '{{test}}: ₹{{tp}} (50% विशेष दर)',
   },
   'book.pricing.thyrocare_only': {
-    en: '{{test}}: Thyrocare ₹{{tp}} (Lal PathLabs doesn\'t list this)',
-    hi: '{{test}}: Thyrocare ₹{{tp}} (Lal PathLabs में यह टेस्ट नहीं है)',
+    en: '{{test}}: ₹{{tp}} (50% Launch Rate)',
+    hi: '{{test}}: ₹{{tp}} (50% विशेष दर)',
   },
   'book.pricing.lal_only': {
-    en: '{{test}}: Lal PathLabs ₹{{lp}} (Thyrocare doesn\'t list this)',
-    hi: '{{test}}: Lal PathLabs ₹{{lp}} (Thyrocare में यह टेस्ट नहीं है)',
+    en: '{{test}}: ₹{{lp}} (50% Launch Rate)',
+    hi: '{{test}}: ₹{{lp}} (50% विशेष दर)',
   },
   'book.pricing.neither': {
-    en: '{{test}}: Price on call. Reply STAFF for callback.',
-    hi: '{{test}}: मूल्य फ़ोन पर। कॉलबैक के लिए STAFF भेजें।',
+    en: '{{test}}: Custom quote on consultation. Reply STAFF for callback.',
+    hi: '{{test}}: कस्टम दर। कॉलबैक के लिए STAFF भेजें।',
   },
 
-  // ---- v3.0 — Lab picker step ----
-  'book.pick_lab.prompt': {
-    en: 'Which lab? / कौन सी लैब?',
-    hi: 'कौन सी लैब? / Which lab?',
-  },
-  'book.pick_lab.btn_thyrocare': {
-    en: 'Thyrocare ₹{{tp}}',
-    hi: 'Thyrocare ₹{{tp}}',
-  },
-  'book.pick_lab.btn_lal': {
-    en: 'Lal PathLabs ₹{{lp}}',
-    hi: 'Lal PathLabs ₹{{lp}}',
-  },
-
-  // ---- v3.0 — Payment step ----
+  // ---- Payment step ----
   'book.payment.prompt': {
-    en: 'Total ₹{{total}}. Pay now via UPI or at collection? / कुल ₹{{total}}। अभी UPI से भुगतान या सैंपल लेने पर?',
-    hi: 'कुल ₹{{total}}। अभी UPI से भुगतान या सैंपल लेने पर? / Total ₹{{total}}. Pay now via UPI or at collection?',
+    en: 'Total ₹{{total}} (50% Launch Rate). Pay now via UPI or after kickoff review?',
+    hi: 'कुल ₹{{total}} (50% विशेष दर)। अभी UPI से भुगतान या समीक्षा के बाद?',
   },
-  // v3.2.1 — payee name corrected to "KUMAR CHANDAN PATEL" (the actual name
-  // customers see in their UPI app, since the VPA is bound to a personal
-  // account; setting it to the lab name caused customer confusion).
   'book.payment.upi_text': {
-    en: '💳 *Pay ₹{{total}} via UPI*\nBooking: {{id}}\n\nTap link to open UPI app:\n{{link}}\n\nOr long-press to copy UPI ID:\n`{{vpa}}`\n\nYou\'ll see recipient as: *KUMAR CHANDAN PATEL*\n\nAfter paying, tap *✓ I\'ve Paid* below or send a screenshot. Team verifies in 2 hours.',
-    hi: '💳 *UPI से ₹{{total}} का भुगतान*\nबुकिंग: {{id}}\n\nUPI ऐप खोलने के लिए दबाएँ:\n{{link}}\n\nUPI ID कॉपी करने के लिए लंबा दबाएँ:\n`{{vpa}}`\n\nआपको receiver दिखेगा: *KUMAR CHANDAN PATEL*\n\nभुगतान के बाद नीचे *✓ भुगतान हो गया* दबाएँ या स्क्रीनशॉट भेजें। टीम 2 घंटे में पुष्टि करेगी।',
+    en: '💳 *Pay ₹{{total}} via UPI*\nProject Booking: {{id}}\n\nTap link to open UPI app:\n{{link}}\n\nOr long-press to copy UPI ID:\n`{{vpa}}`\n\nRecipient: *KUMAR CHANDAN PATEL* / *Indal KP*\n\nAfter paying, tap *✓ I\'ve Paid* below or send a screenshot. Production commences immediately upon verification.',
+    hi: '💳 *UPI से ₹{{total}} का भुगतान*\nप्रोजेक्ट बुकिंग: {{id}}\n\nUPI ऐप खोलने के लिए दबाएँ:\n{{link}}\n\nUPI ID कॉपी करने के लिए लंबा दबाएँ:\n`{{vpa}}`\n\nRecipient दिखेगा: *KUMAR CHANDAN PATEL* / *Indal KP*\n\nभुगतान के बाद नीचे *✓ भुगतान हो गया* दबाएँ या स्क्रीनशॉट भेजें। पुष्टि होते ही निर्माण कार्य आरंभ होगा।',
   },
   'book.payment.btn_paid': {
     en: '✓ I\'ve Paid / भुगतान हो गया',
     hi: '✓ भुगतान हो गया / I\'ve Paid',
   },
   'book.payment.btn_collection': {
-    en: '💵 Pay at Collection / सैंपल पर भुगतान',
-    hi: '💵 सैंपल पर भुगतान / Pay at Collection',
+    en: '💵 Pay on Milestone / किस्तों में भुगतान',
+    hi: '💵 किस्तों में भुगतान / Pay on Milestone',
   },
   'book.payment.thanks_paid': {
-    en: 'Got it ✓ Team verifies in 2 hours / धन्यवाद ✓ टीम 2 घंटे में पुष्टि करेगी',
-    hi: 'धन्यवाद ✓ टीम 2 घंटे में पुष्टि करेगी / Got it ✓ Team verifies in 2 hours',
+    en: 'Payment noted ✓ Studio team will verify and start your project milestone.',
+    hi: 'धन्यवाद ✓ स्टूडियो टीम पुष्टि कर प्रोजेक्ट शुरू करेगी।',
   },
   'book.payment.collection_confirmed': {
-    en: 'Booked ✓ Pay ₹{{total}} on collection / बुकिंग पुष्टि ✓ सैंपल पर ₹{{total}} दें',
-    hi: 'बुकिंग पुष्टि ✓ सैंपल पर ₹{{total}} दें / Booked ✓ Pay ₹{{total}} on collection',
+    en: 'Project Registered ✓ Milestone payment of ₹{{total}} on review',
+    hi: 'प्रोजेक्ट दर्ज ✓ समीक्षा पर ₹{{total}} का भुगतान',
   },
 
-  // ---- v3.2.1 — Separate "staff will call" promise sent after the booking
-  // summary and before the payment prompt. Includes tap-to-call number on
-  // its own line (WhatsApp auto-detects and makes it tappable).
   'book.staff_call_promise': {
-    en: 'Our staff will call you shortly to confirm details.\n\n📞 Need to talk now? Call us:\n+91 97985 86981',
-    hi: 'हमारा स्टाफ़ जल्द कॉल करके पुष्टि करेगा।\n\n📞 अभी बात करनी है? कॉल करें:\n+91 97985 86981',
+    en: 'Indal KP will personally review your brief and connect shortly.\n\n📞 Direct line:\n+91 9724508082\n🌐 Portfolio:\nhttps://indalkp.com',
+    hi: 'इंडाल केपी व्यक्तिगत रूप से आपके ब्रीफ़ की समीक्षा कर शीघ्र संपर्क करेंगे।\n\n📞 संपर्क नंबर:\n+91 9724508082\n🌐 पोर्टफोलियो:\nhttps://indalkp.com',
   },
 
-  // ---- Location step (v2.2) ----
+  // ---- Location / Brief step ----
   'book.location.prompt': {
-    en: '📍 Share location for sample pickup / सैंपल पिकअप के लिए लोकेशन भेजें\n\nWhere should our team come? / कहाँ आना है हमारी टीम को?',
-    hi: '📍 सैंपल पिकअप के लिए लोकेशन भेजें / Share location for sample pickup\n\nकहाँ आना है हमारी टीम को? / Where should our team come?',
+    en: '📁 Share your project brief link or company location:\n\nWhere can we review your scripts or references?',
+    hi: '📁 अपने प्रोजेक्ट ब्रीफ़ का लिंक या कंपनी विवरण साझा करें:\n\nहम आपकी स्क्रिप्ट या संदर्भ कहाँ देख सकते हैं?',
   },
   'book.location.btn_send':  { en: '📍 Send Location',     hi: '📍 लोकेशन भेजें' },
-  'book.location.btn_type':  { en: '📝 Type Address',      hi: '📝 पता लिखें' },
-  'book.location.btn_visit': { en: '🏥 Visit Lab Instead', hi: '🏥 लैब आऊँगा' },
+  'book.location.btn_type':  { en: '📝 Type Brief / Link', hi: '📝 ब्रीफ़ / लिंक लिखें' },
+  'book.location.btn_visit': { en: '🌐 Visit indalkp.com', hi: '🌐 वेबसाइट देखें' },
   'book.location.send_instruction': {
-    en: 'Tap the 📎 attachment icon → Location → Send your current location.\n\nनीचे 📎 आइकन दबाएँ → Location → अपनी मौजूदा लोकेशन भेजें।',
-    hi: 'नीचे 📎 आइकन दबाएँ → Location → अपनी मौजूदा लोकेशन भेजें।\n\nTap the 📎 attachment icon → Location → Send your current location.',
+    en: 'Send your project script link, drive folder, or company location.',
+    hi: 'प्रोजेक्ट स्क्रिप्ट लिंक, ड्राइव फ़ोल्डर या कंपनी लोकेशन भेजें।',
   },
   'book.location.text_prompt': {
-    en: 'Type the full address (house, area, landmarks, pincode):',
-    hi: 'पूरा पता लिखें (मकान, इलाक़ा, लैंडमार्क, पिनकोड):',
+    en: 'Type your project brief, script outline, or reference drive link:',
+    hi: 'प्रोजेक्ट ब्रीफ़, स्क्रिप्ट या संदर्भ ड्राइव लिंक लिखें:',
   },
   'book.location.visit_lab': {
-    en: '🏥 *Visit our lab*\nUnique Janch Ghar (formerly Hi-tech Patho Lab Rajgir)\nNear RX India Pharma, opp. Sub-Divisional Hospital,\nRajgir, Nalanda, Bihar 803116\n\n🕒 Mon–Sat 7AM–9PM, Sun 7AM–12PM\n📞 +91 9798586981',
-    hi: '🏥 *लैब आइए*\nयूनिक जाँच घर (पहले हाई-टेक पैथो लैब राजगीर)\nRX India Pharma के पास, सब-डिविज़नल हॉस्पिटल के सामने,\nराजगीर, नालंदा, बिहार 803116\n\n🕒 सोम–शनि 7AM–9PM, रवि 7AM–12PM\n📞 +91 9798586981',
+    en: '🌐 *Indal KP Studio*\n_Creative Technologist & Film Maker_\n\nExplore portfolio & breakdown reels:\nhttps://indalkp.com\n\n✉️ indalkp@gmail.com\n📞 +91 9724508082',
+    hi: '🌐 *इन्दल केपी स्टूडियो*\n_चलचित्र निर्माण एवं रचनात्मक स्वचालन_\n\nपोर्टफोलियो एवं ब्रेकडाउन रील्स देखें:\nhttps://indalkp.com\n\n✉️ indalkp@gmail.com\n📞 +91 9724508082',
   },
   'book.location.got_share': {
-    en: '✅ Got your pickup location: {{address}}',
-    hi: '✅ पिकअप लोकेशन मिल गई: {{address}}',
+    en: '✅ Got your location/link: {{address}}',
+    hi: '✅ लोकेशन / लिंक मिल गया: {{address}}',
   },
   'book.location.got_text': {
-    en: '✅ Got your pickup address: {{address}}',
-    hi: '✅ पिकअप पता मिल गया: {{address}}',
+    en: '✅ Got your project brief: {{address}}',
+    hi: '✅ प्रोजेक्ट ब्रीफ़ मिल गया: {{address}}',
   },
 
-  // ---- Confirm + success (v2.2: address line; v3.0: chosen_lab line) ----
+  // ---- Confirm + success ----
   'book.confirm.body':   {
-    en: 'Booking summary:\n{{items}}\nTotal: ₹{{total}}\nDate: {{date}}\nSlot: {{slot}}\nPickup: {{address}}',
-    hi: 'बुकिंग सारांश:\n{{items}}\nकुल: ₹{{total}}\nतारीख़: {{date}}\nसमय: {{slot}}\nपिकअप: {{address}}',
+    en: 'Project Booking Summary:\n{{items}}\nTotal: ₹{{total}} (50% Launch Rate)\nKickoff Date: {{date}}\nDiscussion Slot: {{slot}}\nBrief/Ref: {{address}}',
+    hi: 'प्रोजेक्ट बुकिंग सारांश:\n{{items}}\nकुल: ₹{{total}} (50% विशेष दर)\nशुरुआती तारीख़: {{date}}\nसमय: {{slot}}\nब्रीफ़: {{address}}',
   },
-  'book.confirm.yes':    { en: 'Confirm', hi: 'कन्फ़र्म' },
-  'book.confirm.no':     { en: 'Cancel', hi: 'रद्द' },
+  'book.confirm.yes':    { en: 'Confirm Booking', hi: 'कन्फ़र्म करें' },
+  'book.confirm.no':     { en: 'Cancel', hi: 'रद्द करें' },
   'book.success':        {
-    en: '✅ Booking saved\n\nBooking ID: {{id}}\n{{items}}\nTotal: ₹{{total}}\nDate: {{date}}\nSlot: {{slot}}\nPickup: {{address}}\n\nOur team will call you to confirm. Reply MENU to start over.',
-    hi: '✅ बुकिंग सेव हो गई\n\nबुकिंग ID: {{id}}\n{{items}}\nकुल: ₹{{total}}\nतारीख़: {{date}}\nसमय: {{slot}}\nपिकअप: {{address}}\n\nहमारी टीम कन्फ़र्म करने के लिए कॉल करेगी। फिर से शुरू करने के लिए MENU भेजें।',
+    en: '✅ Project Booking Saved\n\nBooking ID: {{id}}\n{{items}}\nTotal: ₹{{total}} (50% Launch Rate)\nKickoff: {{date}}\nSlot: {{slot}}\nBrief: {{address}}\n\nIndal KP will personally connect to review the brief. Reply MENU to start over.',
+    hi: '✅ प्रोजेक्ट बुकिंग सेव हो गई\n\nबुकिंग ID: {{id}}\n{{items}}\nकुल: ₹{{total}} (50% विशेष दर)\nतारीख़: {{date}}\nसमय: {{slot}}\nब्रीफ़: {{address}}\n\nइंडाल केपी शीघ्र संपर्क करेंगे। फिर से शुरू करने के लिए MENU भेजें।',
   },
-  // v3.0 — confirmation that names the chosen lab so the customer sees it.
   'book.success.with_lab': {
-    en: '✅ Booking saved\n\nBooking ID: {{id}}\n{{items}}\nTotal: ₹{{total}}\nDate: {{date}}\nSlot: {{slot}}\nPickup: {{address}}\nLab: {{chosen_lab}}\n\nNext step: complete payment below.',
-    hi: '✅ बुकिंग सेव हो गई\n\nबुकिंग ID: {{id}}\n{{items}}\nकुल: ₹{{total}}\nतारीख़: {{date}}\nसमय: {{slot}}\nपिकअप: {{address}}\nलैब: {{chosen_lab}}\n\nअगला स्टेप: नीचे भुगतान पूरा करें।',
+    en: '✅ Project Booking Saved\n\nBooking ID: {{id}}\n{{items}}\nTotal: ₹{{total}} (50% Launch Rate)\nKickoff: {{date}}\nSlot: {{slot}}\nBrief: {{address}}\n\nNext step: complete payment or confirm milestone below.',
+    hi: '✅ प्रोजेक्ट बुकिंग सेव हो गई\n\nबुकिंग ID: {{id}}\n{{items}}\nकुल: ₹{{total}} (50% विशेष दर)\nतारीख़: {{date}}\nसमय: {{slot}}\nब्रीफ़: {{address}}\n\nअगला स्टेप: नीचे भुगतान पूरा करें।',
   },
   'book.cancelled':      { en: 'Booking cancelled. Reply MENU to start over.', hi: 'बुकिंग रद्द। फिर से शुरू करने के लिए MENU भेजें।' },
 
-  // ---- Cart (multi-test, v2.1) ----
+  // ---- Cart (multi-item) ----
   'cart.added':          {
-    en: 'Added {{test}}. ₹{{price}} added to cart. Total ₹{{total}}.',
-    hi: '{{test}} जोड़ा गया। ₹{{price}} कार्ट में जुड़ा। कुल ₹{{total}}।',
+    en: 'Added {{test}}. ₹{{price}} added. Total ₹{{total}}.',
+    hi: '{{test}} जोड़ा गया। ₹{{price}} जुड़ा। कुल ₹{{total}}।',
   },
-  'cart.add_more':       { en: 'Add Another', hi: 'और जोड़ें' },
+  'cart.add_more':       { en: 'Add Another Package', hi: 'और पैकेज जोड़ें' },
   'cart.proceed':        { en: 'Proceed', hi: 'आगे बढ़ें' },
   'cart.summary':        {
-    en: 'Cart:\n{{items}}\nTotal: ₹{{total}}',
-    hi: 'कार्ट:\n{{items}}\nकुल: ₹{{total}}',
+    en: 'Selected Packages:\n{{items}}\nTotal: ₹{{total}}',
+    hi: 'चुने गए पैकेज:\n{{items}}\nकुल: ₹{{total}}',
   },
 
-  'status.prompt':       { en: 'Type your name OR your booking ID (e.g. UJG-1234).', hi: 'अपना नाम या बुकिंग ID लिखें (जैसे UJG-1234)।' },
+  // ---- Status flow ----
+  'status.prompt':       { en: 'Type your name OR your booking ID (e.g. IKP-260918-1234).', hi: 'अपना नाम या बुकिंग ID लिखें (जैसे IKP-260918-1234)।' },
   'status.found':        {
-    en: 'Booking {{id}}\nTest: {{test}}\nDate: {{date}} {{slot}}\nStatus: {{status}}\n\n{{note}}',
-    hi: 'बुकिंग {{id}}\nटेस्ट: {{test}}\nतारीख़: {{date}} {{slot}}\nस्थिति: {{status}}\n\n{{note}}',
+    en: 'Project {{id}}\nPackage: {{test}}\nKickoff: {{date}} {{slot}}\nStatus: {{status}}\n\n{{note}}',
+    hi: 'प्रोजेक्ट {{id}}\nपैकेज: {{test}}\nशुरुआत: {{date}} {{slot}}\nस्थिति: {{status}}\n\n{{note}}',
   },
-  'status.not_found.body': { en: 'No booking found.', hi: 'कोई बुकिंग नहीं मिली।' },
-  'status.book_new':     { en: 'Book New', hi: 'नई बुकिंग' },
+  'status.not_found.body': { en: 'No active project booking found.', hi: 'कोई प्रोजेक्ट बुकिंग नहीं मिली।' },
+  'status.book_new':     { en: 'Book New Project', hi: 'नया प्रोजेक्ट बुक करें' },
   'status.main_menu':    { en: 'Main Menu', hi: 'मुख्य मेनू' },
-  'status.note.pending':   { en: 'Sample not yet collected.', hi: 'सैंपल अभी नहीं लिया गया।' },
-  'status.note.confirmed': { en: 'Booking confirmed.', hi: 'बुकिंग कन्फ़र्म।' },
-  'status.note.collected': { en: 'Sample collected. Report processing.', hi: 'सैंपल लिया गया। रिपोर्ट तैयार हो रही है।' },
-  'status.note.ready':     { en: 'Report is ready.', hi: 'रिपोर्ट तैयार है।' },
-  'status.note.cancelled': { en: 'This booking was cancelled.', hi: 'यह बुकिंग रद्द कर दी गई।' },
+  'status.note.pending':   { en: 'Brief under initial review.', hi: 'ब्रीफ़ की प्रारंभिक समीक्षा जारी है।' },
+  'status.note.confirmed': { en: 'Project confirmed. Preproduction commenced.', hi: 'प्रोजेक्ट कन्फ़र्म। प्री-प्रोडक्शन शुरू।' },
+  'status.note.collected': { en: 'In active production pipeline.', hi: 'निर्माण कार्य सक्रिय रूप से जारी है।' },
+  'status.note.ready':     { en: 'Master video renders ready for review.', hi: 'मास्टर वीडियो रेंडर समीक्षा के लिए तैयार हैं।' },
+  'status.note.cancelled': { en: 'This project booking was cancelled.', hi: 'यह प्रोजेक्ट बुकिंग रद्द कर दी गई।' },
 
-  'catalog.header':      { en: 'Pricing & Tests', hi: 'मूल्य और टेस्ट' },
-  'catalog.body':        { en: 'Pick a category.', hi: 'कैटेगरी चुनें।' },
-  'catalog.button':      { en: 'Categories', hi: 'कैटेगरी' },
-  'catalog.section':     { en: 'Categories', hi: 'कैटेगरी' },
-  'catalog.cat.hematology':   { en: 'Hematology', hi: 'हीमेटोलॉजी' },
-  'catalog.cat.biochemistry': { en: 'Biochemistry', hi: 'बायोकेमिस्ट्री' },
-  'catalog.cat.hormones':     { en: 'Hormones', hi: 'हॉर्मोन' },
-  'catalog.cat.diabetes':     { en: 'Diabetes', hi: 'डायबिटीज़' },
-  'catalog.cat.vitamins':     { en: 'Vitamins', hi: 'विटामिन' },
-  'catalog.cat.urinalysis':   { en: 'Urinalysis', hi: 'यूरिन टेस्ट' },
-  'catalog.cat.microbiology': { en: 'Microbiology', hi: 'माइक्रोबायोलॉजी' },
-  'catalog.cat.special':      { en: 'Special Tests', hi: 'विशेष टेस्ट' },
-  'catalog.tests.header':     { en: 'Tests in {{category}}', hi: '{{category}} के टेस्ट' },
-  'catalog.tests.body':       { en: 'Pick a test for details.', hi: 'विवरण के लिए टेस्ट चुनें।' },
+  // ---- Catalog flow ----
+  'catalog.header':      { en: 'Studio Packages & Rates', hi: 'स्टूडियो पैकेज एवं दरें' },
+  'catalog.body':        { en: 'Pick a category to explore 50% discounted launch rates:', hi: '50% विशेष छूट के साथ पैकेज देखने के लिए श्रेणी चुनें:' },
+  'catalog.button':      { en: 'Categories', hi: 'श्रेणियां' },
+  'catalog.section':     { en: 'Categories', hi: 'श्रेणियां' },
+  'catalog.cat.commercial':   { en: 'Commercial Video', hi: 'कमर्शियल वीडियो' },
+  'catalog.cat.preproduction': { en: 'Preproduction', hi: 'प्री-प्रोडक्शन' },
+  'catalog.cat.automation':    { en: 'Creator Automation', hi: 'क्रिएटर ऑटोमेशन' },
+  'catalog.cat.motion':        { en: 'Motion Reel', hi: 'मोशन रील' },
+  'catalog.tests.header':     { en: 'Packages in {{category}}', hi: '{{category}} के पैकेज' },
+  'catalog.tests.body':       { en: 'Pick a package for details.', hi: 'विवरण के लिए पैकेज चुनें।' },
   'catalog.tests.button':     { en: 'View', hi: 'देखें' },
   'catalog.test.detail':      {
-    en: '{{name}}\nPrice: ₹{{price}}\nSample: {{sample}}\nFasting: {{fasting}}\nReport in: {{tat}}\n\n{{notes}}',
-    hi: '{{name}}\nमूल्य: ₹{{price}}\nसैंपल: {{sample}}\nखाली पेट: {{fasting}}\nरिपोर्ट: {{tat}}\n\n{{notes}}',
+    en: '🎬 {{name}}\nRate: ₹{{price}} (50% Launch Rate)\nScope: {{sample}}\nTurnaround: {{tat}}\n\n{{notes}}',
+    hi: '🎬 {{name}}\nदर: ₹{{price}} (50% विशेष दर)\nदायरा: {{sample}}\nसमय: {{tat}}\n\n{{notes}}',
   },
-  'catalog.book_this':        { en: 'Book This Test', hi: 'यह टेस्ट बुक करें' },
+  'catalog.book_this':        { en: 'Book This Package', hi: 'यह पैकेज बुक करें' },
   'catalog.back':             { en: 'Back to Menu', hi: 'मेनू पर वापस' },
-  'catalog.empty':            { en: 'No tests found.', hi: 'कोई टेस्ट नहीं मिला।' },
+  'catalog.empty':            { en: 'No packages found in this category.', hi: 'इस श्रेणी में कोई पैकेज नहीं मिला।' },
 
+  // ---- Info flow ----
   'info.body':           {
-    en: 'Unique Janch Ghar (formerly Hi-tech Patho Lab Rajgir)\n\n🕒 Hours\nMon–Sat 7AM–9PM\nSun 7AM–12PM\n\n📞 Phone\n+91 9798586981\n\n📍 Address\nNear RX India Pharma, opp. Sub-Divisional Hospital,\nRajgir, Nalanda, Bihar 803116\n\nReply MENU for the main menu.',
-    hi: 'यूनिक जाँच घर (पहले हाई-टेक पैथो लैब राजगीर)\n\n🕒 समय\nसोम–शनि 7AM–9PM\nरवि 7AM–12PM\n\n📞 फ़ोन\n+91 9798586981\n\n📍 पता\nRX India Pharma के पास, सब-डिविज़नल हॉस्पिटल के सामने,\nराजगीर, नालंदा, बिहार 803116\n\nमुख्य मेनू के लिए MENU भेजें।',
+    en: '🎬 *Indal KP Studio*\n_Indal KP — Creative Technologist & Film Maker_\n\nCrafting hybrid 2D hand-drawn animation, cinematic AI commercials, and custom preproduction pipelines. From conceptual script and storyboard to living characters and turnkey video assets.\n\nकला और तकनीक का अद्वितीय संगम — चलचित्र निर्माण एवं रचनात्मक स्वचालन।\n\n🕒 *Business Hours*\nMonday – Saturday: 09:00 – 21:00 IST\nSunday: Focused Production Sprints\n\n🌐 *Website & Portfolio*\nhttps://indalkp.com\n\n✉️ *Email*\nindalkp@gmail.com\n\n📱 *WhatsApp / Direct Line*\n+91 9724508082\n\nReply MENU anytime for services.',
+    hi: '🎬 *इन्दल केपी स्टूडियो*\n_इंडाल केपी — Creative Technologist & Film Maker_\n\nकला और तकनीक का अद्वितीय संगम — 2D एनिमेशन, चलचित्र विज्ञापन (Commercials) और रचनात्मक स्वचालन (Automation)।\n\n🕒 *कार्य समय*\nसोमवार – शनिवार: 09:00 – 21:00 IST\nरविवार: प्रोडक्शन स्प्रिंट्स\n\n🌐 *वेबसाइट एवं पोर्टफोलियो*\nhttps://indalkp.com\n\n✉️ *ईमेल*\nindalkp@gmail.com\n\n📱 *व्हाट्सएप / डायरेक्ट लाइन*\n+91 9724508082\n\nमुख्य मेनू के लिए MENU भेजें।',
   },
 
-  'handoff.prompt':      { en: 'Our staff will call you back. When works best?', hi: 'हमारी टीम कॉल करेगी। कब सही रहेगा?' },
-  'handoff.now':         { en: 'Now', hi: 'अभी' },
+  // ---- Handoff flow ----
+  'handoff.prompt':      { en: 'Indal KP will personally connect with you for creative consultation. When works best?', hi: 'इंडाल केपी परामर्श के लिए संपर्क करेंगे। कब बात करना चाहेंगे?' },
+  'handoff.now':         { en: 'ASAP / तुरंत', hi: 'तुरंत' },
   'handoff.2h':          { en: 'Within 2 hours', hi: '2 घंटे में' },
   'handoff.tomorrow':    { en: 'Tomorrow morning', hi: 'कल सुबह' },
-  'handoff.success':     { en: 'Got it. We will call you {{when}}.', hi: 'ठीक है। हम {{when}} कॉल करेंगे।' },
+  'handoff.success':     { en: 'Got it. Indal KP will connect with you {{when}} on this WhatsApp line.', hi: 'ठीक है। इंडाल केपी {{when}} इसी व्हाट्सएप पर संपर्क करेंगे।' },
 
   'common.menu_hint':    { en: 'Reply MENU to see options.', hi: 'विकल्प देखने के लिए MENU भेजें।' },
-  'common.unknown':      { en: 'I did not catch that. Reply MENU.', hi: 'समझ नहीं पाया। MENU भेजें।' },
+  'common.unknown':      { en: 'I did not catch that. Reply MENU to see studio services.', hi: 'समझ नहीं पाया। सेवाएं देखने के लिए MENU भेजें।' },
   'common.rate_limited': { en: 'You are sending too quickly.', hi: 'आप बहुत तेज़ी से भेज रहे हैं।' },
-  'common.outside_window': { en: 'Send any message to reopen.', hi: 'फिर से शुरू करने के लिए कोई संदेश भेजें।' },
-  'common.cancelled':    { en: 'Cancelled. Reply MENU.', hi: 'रद्द। MENU भेजें।' },
+  'common.outside_window': { en: 'Send any message to reopen conversation.', hi: 'फिर से शुरू करने के लिए कोई संदेश भेजें।' },
+  'common.cancelled':    { en: 'Cancelled. Reply MENU to start over.', hi: 'रद्द। फिर से शुरू करने के लिए MENU भेजें।' },
 };
 
 module.exports = {
-  detectLang: detectLang,
-  t: t,
-  fill: fill,
-  STRINGS: STRINGS,
+  detectLang,
+  t,
+  fill,
+  STRINGS,
 };

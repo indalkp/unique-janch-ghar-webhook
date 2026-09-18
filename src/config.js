@@ -66,7 +66,7 @@ function load() {
     TZ: process.env.TZ || 'Asia/Kolkata',
     AFTERHOURS_START: parseInt(process.env.AFTERHOURS_START || '21', 10),
     AFTERHOURS_END: parseInt(process.env.AFTERHOURS_END || '8', 10),
-    LAB_NAME: process.env.LAB_NAME || 'Unique Janch Ghar',
+    LAB_NAME: process.env.LAB_NAME || 'Indal KP Studio',
   };
 }
 

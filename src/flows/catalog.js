@@ -90,14 +90,10 @@ async function readCatalog() {
  * if some are empty in the Sheet — staff get a hint that they need to seed.
  */
 const CATEGORIES = [
-  { id: 'cat_hematology',   key: 'Hematology',    label: 'catalog.cat.hematology' },
-  { id: 'cat_biochemistry', key: 'Biochemistry',  label: 'catalog.cat.biochemistry' },
-  { id: 'cat_hormones',     key: 'Hormones',      label: 'catalog.cat.hormones' },
-  { id: 'cat_diabetes',     key: 'Diabetes',      label: 'catalog.cat.diabetes' },
-  { id: 'cat_vitamins',     key: 'Vitamins',      label: 'catalog.cat.vitamins' },
-  { id: 'cat_urinalysis',   key: 'Urinalysis',    label: 'catalog.cat.urinalysis' },
-  { id: 'cat_microbiology', key: 'Microbiology',  label: 'catalog.cat.microbiology' },
-  { id: 'cat_special',      key: 'Special Tests', label: 'catalog.cat.special' },
+  { id: 'cat_commercial',   key: 'Commercial Video',   label: 'catalog.cat.commercial' },
+  { id: 'cat_preproduction', key: 'Preproduction',     label: 'catalog.cat.preproduction' },
+  { id: 'cat_automation',    key: 'Creator Automation', label: 'catalog.cat.automation' },
+  { id: 'cat_motion',        key: 'Motion Reel',        label: 'catalog.cat.motion' },
 ];
 
 async function start(wa_id, lang) {
